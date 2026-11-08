@@ -165,5 +165,3 @@ export async function requireIdentity(
   }
   return fail(401, identity.reason, options);
 }
-
-PLACEHOLDER_WILL_REPLACE
