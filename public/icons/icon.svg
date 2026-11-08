@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Winefridge">
+  <rect width="512" height="512" rx="96" fill="#1f3d34"/>
+  <circle cx="270" cy="230" r="120" fill="#2d5246"/>
+  <path fill="#e8d6aa" d="M232 90h48c8 0 14 6 14 14v48c28 18 46 50 46 88 0 58-44 104-98 104s-98-46-98-104c0-38 18-70 46-88V104c0-8 6-14 14-14zm-2 78c-22 14-36 40-36 72 0 42 32 76 72 76s72-34 72-76c0-32-14-58-36-72h-72z"/>
+  <rect x="236" y="360" width="40" height="62" rx="10" fill="#e8d6aa"/>
+</svg>
