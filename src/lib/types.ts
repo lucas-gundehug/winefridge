@@ -1,4 +1,6 @@
-export type WineType = "rød" | "hvid" | "rosé" | "mousserende" | "anden";
+import type { WineType } from "@/lib/wine-types";
+
+export type { WineType } from "@/lib/wine-types";
 
 export type BottleStatus = "in_fridge" | "removed";
 
@@ -17,6 +19,8 @@ export type Bottle = {
   drinkFrom?: string;
   drinkBestBy?: string;
   notes?: string;
+  /** How many identical bottles of this entry are in the fridge. */
+  quantity: number;
   status: BottleStatus;
   removedAt?: string;
 };
