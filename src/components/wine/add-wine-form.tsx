@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Camera, Loader2, Search, Sparkles } from "lucide-react";
+import { ThumbBar } from "@/components/thumb-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,7 @@ export function AddWineForm() {
   const [suggestions, setSuggestions] = useState<WineSuggestion[]>([]);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   function applySuggestion(s: WineSuggestion) {
     const window =
@@ -157,13 +159,13 @@ export function AddWineForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 pb-28">
       <section className="space-y-3">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={identifying}
-          className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl border border-dashed border-[rgba(196,163,90,0.35)] bg-[rgba(42,34,24,0.75)] px-4 py-10 text-center transition hover:bg-[rgba(52,40,28,0.9)]"
+          className="relative flex min-h-28 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl border border-dashed border-[rgba(196,163,90,0.35)] bg-[rgba(42,34,24,0.75)] px-4 py-6 text-center transition hover:bg-[rgba(52,40,28,0.9)]"
         >
           {imageDataUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -212,7 +214,7 @@ export function AddWineForm() {
               }
             }}
           />
-          <Button type="button" variant="secondary" onClick={() => void onSearch()} disabled={searching}>
+          <Button type="button" variant="secondary" size="lg" className="shrink-0 px-4" onClick={() => void onSearch()} disabled={searching}>
             {searching ? <Loader2 className="animate-spin" /> : <Search />}
             Søg
           </Button>
@@ -230,7 +232,7 @@ export function AddWineForm() {
                 <button
                   type="button"
                   onClick={() => applySuggestion(s)}
-                  className="w-full rounded-xl border border-[rgba(196,163,90,0.14)] bg-[rgba(28,22,18,0.9)] px-3 py-2 text-left transition hover:border-[rgba(196,163,90,0.35)]"
+                  className="min-h-11 w-full rounded-xl border border-[rgba(196,163,90,0.14)] bg-[rgba(28,22,18,0.9)] px-3 py-2 text-left transition hover:border-[rgba(196,163,90,0.35)]"
                 >
                   <p className="font-medium leading-tight">{s.name}</p>
                   <p className="text-sm text-muted-foreground">
@@ -271,13 +273,6 @@ export function AddWineForm() {
             placeholder="Vinens navn"
           />
         </Field>
-        <Field label="Producent" id="producer">
-          <Input
-            id="producer"
-            value={form.producer}
-            onChange={(e) => setForm({ ...form, producer: e.target.value })}
-          />
-        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Årgang" id="vintage">
             <Input
@@ -291,7 +286,7 @@ export function AddWineForm() {
           <Field label="Type" id="wineType">
             <select
               id="wineType"
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+              className="h-11 min-h-11 w-full rounded-lg border border-input bg-background px-2.5 text-base"
               value={form.wineType}
               onChange={(e) =>
                 setForm({ ...form, wineType: e.target.value as WineType | "" })
@@ -307,7 +302,7 @@ export function AddWineForm() {
           </Field>
         </div>
         <Field label="Antal flasker" id="quantity">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Input
               id="quantity"
               inputMode="numeric"
@@ -320,13 +315,13 @@ export function AddWineForm() {
                 })
               }
             />
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               {[1, 6, 12].map((n) => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => setForm({ ...form, quantity: String(n) })}
-                  className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                  className={`min-h-11 rounded-full border px-3 text-sm transition ${
                     form.quantity === String(n)
                       ? "border-[rgba(196,163,90,0.55)] bg-[rgba(196,163,90,0.16)] text-[var(--brass)]"
                       : "border-[rgba(196,163,90,0.18)] text-muted-foreground hover:border-[rgba(196,163,90,0.35)]"
@@ -340,6 +335,23 @@ export function AddWineForm() {
           <p className="mt-1 text-xs text-muted-foreground">
             Købt en kasse? Vælg antal, så tælles de som én post på hylden.
           </p>
+        </Field>
+        <button
+          type="button"
+          className="min-h-11 text-left text-sm text-[var(--brass)] underline-offset-4 hover:underline"
+          aria-expanded={detailsOpen}
+          onClick={() => setDetailsOpen((open) => !open)}
+        >
+          {detailsOpen ? "Skjul detaljer" : "Flere detaljer"}
+        </button>
+        {detailsOpen ? (
+          <div className="grid gap-3">
+        <Field label="Producent" id="producer">
+          <Input
+            id="producer"
+            value={form.producer}
+            onChange={(e) => setForm({ ...form, producer: e.target.value })}
+          />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Region" id="region">
@@ -398,20 +410,24 @@ export function AddWineForm() {
             placeholder="Hyldesplads, gave fra…."
           />
         </Field>
+          </div>
+        ) : null}
       </section>
 
-      <Button
-        type="button"
-        size="lg"
-        className="h-11 w-full text-base"
-        onClick={onSave}
-        disabled={pending || identifying}
-      >
-        {pending ? <Loader2 className="animate-spin" /> : null}
-        {Number(form.quantity) > 1
-          ? `Gem ${Math.min(99, Math.max(1, Number(form.quantity) || 1))} flasker`
-          : "Gem i køleskabet"}
-      </Button>
+      <ThumbBar>
+        <Button
+          type="button"
+          size="lg"
+          className="w-full text-base"
+          onClick={onSave}
+          disabled={pending || identifying}
+        >
+          {pending ? <Loader2 className="animate-spin" /> : null}
+          {Number(form.quantity) > 1
+            ? `Gem ${Math.min(99, Math.max(1, Number(form.quantity) || 1))} flasker`
+            : "Gem i køleskabet"}
+        </Button>
+      </ThumbBar>
     </div>
   );
 }

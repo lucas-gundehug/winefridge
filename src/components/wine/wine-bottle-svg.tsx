@@ -1,194 +1,339 @@
-import type { WineType } from "@/lib/types";
+"use client";
 
-const colors: Record<
-  WineType,
-  { glass: string; glassDeep: string; wine: string; foil: string; label: string; cork: string }
-> = {
+import { useId } from "react";
+import type { WineType } from "@/lib/types";
+import { bottleLabelCopy, bottleShape, type BottleShape } from "@/lib/shelf";
+
+type Glass = {
+  deep: string;
+  mid: string;
+  wine: string;
+  foil: string;
+  foilDeep: string;
+  paper: string;
+  ink: string;
+};
+
+const GLASS: Record<WineType, Glass> = {
   rød: {
-    glass: "#3a1520",
-    glassDeep: "#16080c",
-    wine: "#7a1a2c",
-    foil: "#8a6a28",
-    label: "#e8d9b0",
-    cork: "#c4a06a",
+    deep: "#14080c",
+    mid: "#4a1824",
+    wine: "#7a2432",
+    foil: "#c4a35a",
+    foilDeep: "#5c431c",
+    paper: "#f4e7c8",
+    ink: "#3a2714",
   },
   hvid: {
-    glass: "#3a3420",
-    glassDeep: "#1c1810",
-    wine: "#d4c478",
-    foil: "#b89a4a",
-    label: "#f2ead2",
-    cork: "#c4a06a",
+    deep: "#16140c",
+    mid: "#6a6234",
+    wine: "#e4d48a",
+    foil: "#d7c48a",
+    foilDeep: "#7a6840",
+    paper: "#f7f1e4",
+    ink: "#3a2714",
   },
   rosé: {
-    glass: "#3a1820",
-    glassDeep: "#1a0c10",
-    wine: "#c4788a",
-    foil: "#a88840",
-    label: "#f0e4d0",
-    cork: "#c4a06a",
+    deep: "#160a10",
+    mid: "#6a3040",
+    wine: "#d48996",
+    foil: "#c4a35a",
+    foilDeep: "#6a5428",
+    paper: "#f8efe6",
+    ink: "#3a2714",
   },
   mousserende: {
-    glass: "#243018",
-    glassDeep: "#12180c",
-    wine: "#c8d090",
-    foil: "#c4a35a",
-    label: "#efe6cf",
-    cork: "#d8c49a",
+    deep: "#12160e",
+    mid: "#5a6438",
+    wine: "#d5dca6",
+    foil: "#ead9a4",
+    foilDeep: "#8a7340",
+    paper: "#f6f1e2",
+    ink: "#2c2416",
   },
   portvin: {
-    glass: "#2a0c14",
-    glassDeep: "#100508",
-    wine: "#4a0c18",
-    foil: "#6a4820",
-    label: "#e2d2a8",
-    cork: "#b89060",
+    deep: "#10060a",
+    mid: "#3a1018",
+    wine: "#5a1824",
+    foil: "#2a2118",
+    foilDeep: "#100e0c",
+    paper: "#f1e3c4",
+    ink: "#3a2714",
   },
   madeira: {
-    glass: "#2c140c",
-    glassDeep: "#140808",
-    wine: "#6a2810",
-    foil: "#8a6a28",
-    label: "#ead8b0",
-    cork: "#c4a06a",
+    deep: "#140a08",
+    mid: "#5a3018",
+    wine: "#8a4820",
+    foil: "#c4a35a",
+    foilDeep: "#5c4318",
+    paper: "#f3e6c8",
+    ink: "#3a2714",
   },
   sherry: {
-    glass: "#3a2810",
-    glassDeep: "#1a1208",
-    wine: "#b88830",
-    foil: "#9a7a30",
-    label: "#f0e4c8",
-    cork: "#c4a06a",
+    deep: "#16120c",
+    mid: "#8a6830",
+    wine: "#d4a24a",
+    foil: "#c4a35a",
+    foilDeep: "#6a5428",
+    paper: "#f6edd8",
+    ink: "#3a2714",
   },
   dessert: {
-    glass: "#3a2410",
-    glassDeep: "#1a1008",
-    wine: "#c89828",
-    foil: "#c4a35a",
-    label: "#f5e8c8",
-    cork: "#d0b070",
+    deep: "#16100a",
+    mid: "#7a5820",
+    wine: "#e0b45a",
+    foil: "#ead9a4",
+    foilDeep: "#8a7340",
+    paper: "#f8f0dc",
+    ink: "#3a2714",
   },
   orange: {
-    glass: "#3a2410",
-    glassDeep: "#1c1208",
-    wine: "#c87828",
-    foil: "#a87830",
-    label: "#f0e0c0",
-    cork: "#c4a06a",
+    deep: "#160e08",
+    mid: "#8a4e20",
+    wine: "#e08838",
+    foil: "#c4a35a",
+    foilDeep: "#6a5428",
+    paper: "#f6ead4",
+    ink: "#3a2714",
   },
   anden: {
-    glass: "#2a2418",
-    glassDeep: "#14110c",
-    wine: "#7a6040",
-    foil: "#9a7a38",
-    label: "#e8dcc0",
-    cork: "#c4a06a",
+    deep: "#14120e",
+    mid: "#5a4a34",
+    wine: "#8a7050",
+    foil: "#b89a5a",
+    foilDeep: "#5c4a28",
+    paper: "#f3ead8",
+    ink: "#3a2714",
+  },
+};
+
+type Geom = {
+  body: string;
+  foil: { x: number; y: number; w: number; h: number };
+  label: { x: number; y: number; w: number; h: number };
+  cage?: boolean;
+};
+
+const GEOM: Record<BottleShape, Geom> = {
+  bordeaux: {
+    body: "M52 36h16v40c8 6 22 16 22 30v158c0 12-12 20-30 20s-30-8-30-20V106c0-14 14-24 22-30V36z",
+    foil: { x: 50, y: 14, w: 20, h: 26 },
+    label: { x: 34, y: 128, w: 52, h: 84 },
+  },
+  burgundy: {
+    body: "M54 30h12v40c18 22 28 36 28 62v128c0 14-14 22-34 22s-34-8-34-22V132c0-26 10-40 28-62V30z",
+    foil: { x: 52, y: 12, w: 16, h: 24 },
+    label: { x: 36, y: 146, w: 48, h: 74 },
+  },
+  champagne: {
+    body: "M49 24h22v38c20 28 31 46 31 78v116c0 16-16 26-42 26S18 272 18 256V140c0-32 11-50 31-78V24z",
+    foil: { x: 47, y: 8, w: 26, h: 40 },
+    label: { x: 32, y: 152, w: 56, h: 76 },
+    cage: true,
+  },
+  port: {
+    body: "M55 16h10v88c22 14 33 36 33 72 0 48-8 78-16 90-8 12-16 16-22 16s-14-4-22-16c-8-12-16-42-16-90 0-36 11-58 33-72V16z",
+    foil: { x: 53, y: 8, w: 14, h: 22 },
+    label: { x: 38, y: 172, w: 44, h: 62 },
+  },
+  sherry: {
+    body: "M56 10h8v104c16 12 26 28 26 52v86c0 14-12 22-30 22s-30-8-30-22v-86c0-24 10-40 26-52V10z",
+    foil: { x: 54, y: 6, w: 12, h: 20 },
+    label: { x: 40, y: 164, w: 40, h: 62 },
   },
 };
 
 type Props = {
   wineType?: WineType;
-  empty?: boolean;
   imageUrl?: string;
+  name?: string;
+  vintage?: number;
   className?: string;
 };
 
-/** Bordeaux-style wine bottle drawn as SVG. */
 export function WineBottleSvg({
   wineType = "anden",
-  empty = false,
   imageUrl,
+  name,
+  vintage,
   className,
 }: Props) {
-  const c = colors[wineType];
-  const sparkle = wineType === "mousserende";
-  const gid = `b-${wineType}-${empty ? "e" : imageUrl ? "i" : "p"}`;
-
-  if (empty) {
-    return (
-      <svg viewBox="0 0 72 180" className={className} aria-hidden fill="none">
-        <path
-          d="M31 10h10v12c0 3 1 5 2.5 7.5L51 48c3 5 4.5 11 4.5 17v88c0 9-6 15-15.5 15H32c-9.5 0-15.5-6-15.5-15V65c0-6 1.5-12 4.5-17l7.5-18.5C30 27 31 25 31 22V10z"
-          stroke="rgba(196,163,90,0.32)"
-          strokeWidth="1.6"
-          strokeDasharray="4 3"
-          fill="rgba(40,28,18,0.18)"
-        />
-      </svg>
-    );
-  }
+  const uid = useId().replace(/:/g, "");
+  const glass = GLASS[wineType] ?? GLASS.anden;
+  const geom = GEOM[bottleShape(wineType)];
+  const copy = bottleLabelCopy(name ?? "", vintage);
+  const { label } = geom;
 
   return (
-    <svg viewBox="0 0 72 180" className={className} aria-hidden>
+    <svg viewBox="0 0 120 308" className={className} aria-hidden>
       <defs>
-        <linearGradient id={`${gid}-body`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={c.glassDeep} />
-          <stop offset="32%" stopColor={c.glass} />
-          <stop offset="48%" stopColor={c.wine} />
-          <stop offset="70%" stopColor={c.glass} />
-          <stop offset="100%" stopColor={c.glassDeep} />
+        <linearGradient id={`${uid}-glass`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={glass.deep} />
+          <stop offset="16%" stopColor={glass.mid} />
+          <stop offset="27%" stopColor="#fff6e4" stopOpacity="0.42" />
+          <stop offset="38%" stopColor={glass.wine} />
+          <stop offset="62%" stopColor={glass.mid} />
+          <stop offset="100%" stopColor={glass.deep} />
         </linearGradient>
-        <linearGradient id={`${gid}-shine`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-          <stop offset="45%" stopColor="rgba(255,255,255,0.28)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        <linearGradient id={`${uid}-falloff`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.14" />
+          <stop offset="42%" stopColor="#000" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.34" />
         </linearGradient>
-        <clipPath id={`${gid}-label`}>
-          <rect x="23" y="88" width="26" height="40" rx="2" />
+        <linearGradient id={`${uid}-foil`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={glass.foilDeep} />
+          <stop offset="32%" stopColor={glass.foil} />
+          <stop offset="48%" stopColor="#f6edd4" />
+          <stop offset="70%" stopColor={glass.foil} />
+          <stop offset="100%" stopColor={glass.foilDeep} />
+        </linearGradient>
+        <clipPath id={`${uid}-body`}>
+          <path d={geom.body} />
         </clipPath>
+        <clipPath id={`${uid}-label`}>
+          <rect x={label.x} y={label.y} width={label.w} height={label.h} rx="1.5" />
+        </clipPath>
+        <filter id={`${uid}-shadow`} x="-40%" y="-20%" width="180%" height="180%">
+          <feGaussianBlur stdDeviation="2.2" />
+        </filter>
       </defs>
 
-      {/* Foil capsule */}
-      <rect x="29" y="6" width="14" height="16" rx="2" fill={c.foil} />
-      <rect x="29" y="17" width="14" height="3.5" fill={c.glassDeep} opacity="0.4" />
-      {sparkle ? (
-        <path d="M30 6h12l1.5 7H28.5L30 6z" fill="#f0e2b8" opacity="0.5" />
+      <ellipse
+        cx="60"
+        cy="292"
+        rx="26"
+        ry="5"
+        fill="rgba(0,0,0,0.55)"
+        filter={`url(#${uid}-shadow)`}
+      />
+
+      <path d={geom.body} fill={`url(#${uid}-glass)`} />
+      <path d={geom.body} fill={`url(#${uid}-falloff)`} />
+      <path
+        d="M46 78c2 18 3 48 2 92"
+        fill="none"
+        stroke="rgba(255,248,230,0.28)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        clipPath={`url(#${uid}-body)`}
+      />
+      <path
+        d="M78 96c1 20 1 40 0 70"
+        fill="none"
+        stroke="rgba(255,255,255,0.1)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        clipPath={`url(#${uid}-body)`}
+      />
+
+      <rect
+        x={geom.foil.x}
+        y={geom.foil.y}
+        width={geom.foil.w}
+        height={geom.foil.h}
+        rx="2"
+        fill={`url(#${uid}-foil)`}
+      />
+      <rect
+        x={geom.foil.x}
+        y={geom.foil.y + geom.foil.h - 4}
+        width={geom.foil.w}
+        height="3"
+        fill={glass.deep}
+        opacity="0.45"
+      />
+      {geom.cage ? (
+        <path
+          d={`M${geom.foil.x + 2} ${geom.foil.y + geom.foil.h}c4 7 8 7 ${geom.foil.w - 4} 0`}
+          fill="none"
+          stroke={glass.foilDeep}
+          strokeWidth="0.8"
+        />
       ) : null}
 
-      {/* Cork */}
-      <rect x="31.5" y="19.5" width="9" height="6" rx="1" fill={c.cork} />
-
-      {/* Neck */}
-      <path
-        d="M30.5 25h11v20c0 2.2-.6 4.2-1.8 5.8L36 58l-3.7-7.2C31.1 49.2 30.5 47.2 30.5 45V25z"
-        fill={`url(#${gid}-body)`}
+      <g clipPath={`url(#${uid}-label)`}>
+        <rect x={label.x} y={label.y} width={label.w} height={label.h} fill={glass.paper} />
+        {imageUrl ? (
+          <image
+            href={imageUrl}
+            x={label.x}
+            y={label.y}
+            width={label.w}
+            height={label.h}
+            preserveAspectRatio="xMidYMid slice"
+          />
+        ) : (
+          <LabelText geom={geom} copy={copy} ink={glass.ink} />
+        )}
+      </g>
+      <rect
+        x={label.x}
+        y={label.y}
+        width={label.w}
+        height={label.h}
+        rx="1.5"
+        fill="none"
+        stroke={glass.ink}
+        strokeOpacity="0.28"
+        strokeWidth="0.6"
       />
-
-      {/* Shoulders + body */}
-      <path
-        d="M24 56c4-7 9.5-12.5 12-14 2.2-1.3 4.8-1.3 7 0 2.5 1.5 8 7 12 14 3 4.5 4.5 9.5 4.5 14.5v84c0 8-5.2 13.5-13.5 13.5H33c-8.3 0-13.5-5.5-13.5-13.5V70.5C19.5 65.5 21 60.5 24 56z"
-        fill={`url(#${gid}-body)`}
-      />
-
-      {/* Highlight */}
-      <path
-        d="M28 58c2-3.5 4.2-6.5 6-8.5 1.2 2.5 1.8 5.5 1.8 9v78c0 3-.4 5.5-1.2 7.5-2.8-1.2-4.1-4.2-4.1-8.5V62c0-1.5 0-2.8 0-4z"
-        fill={`url(#${gid}-shine)`}
-      />
-
-      {/* Label */}
-      {imageUrl ? (
-        <image
-          href={imageUrl}
-          x="23"
-          y="88"
-          width="26"
-          height="40"
-          preserveAspectRatio="xMidYMid slice"
-          clipPath={`url(#${gid}-label)`}
-        />
-      ) : (
-        <g>
-          <rect x="23" y="88" width="26" height="40" rx="2" fill={c.label} opacity="0.94" />
-          <rect x="26" y="93" width="20" height="2.2" rx="1" fill={c.glassDeep} opacity="0.28" />
-          <rect x="28" y="99" width="16" height="1.6" rx="0.8" fill={c.glassDeep} opacity="0.18" />
-          <rect x="29" y="104" width="14" height="1.6" rx="0.8" fill={c.glassDeep} opacity="0.14" />
-          <circle cx="36" cy="116" r="4.5" fill={c.foil} opacity="0.4" />
-        </g>
-      )}
-
-      {/* Base contact shadow */}
-      <ellipse cx="36" cy="168" rx="13" ry="2.4" fill="rgba(0,0,0,0.4)" />
     </svg>
+  );
+}
+
+function LabelText({
+  geom,
+  copy,
+  ink,
+}: {
+  geom: Geom;
+  copy: { lines: string[]; year: string | null };
+  ink: string;
+}) {
+  const { label } = geom;
+  const center = label.x + label.w / 2;
+  const inner = label.w - 8;
+  const hasYear = Boolean(copy.year);
+  const start = label.y + (hasYear ? 18 : 24);
+
+  return (
+    <g>
+      <rect
+        x={label.x + 6}
+        y={label.y + 6}
+        width={label.w - 12}
+        height="0.7"
+        fill={ink}
+        opacity="0.35"
+      />
+      {copy.lines.map((line, index) => (
+        <text
+          key={`${line}-${index}`}
+          x={center}
+          y={start + index * 11}
+          textAnchor="middle"
+          fill={ink}
+          fontFamily="Fraunces, Georgia, serif"
+          fontSize="8.5"
+          lengthAdjust={line.length > 10 ? "spacingAndGlyphs" : undefined}
+          textLength={line.length > 10 ? inner : undefined}
+        >
+          {line}
+        </text>
+      ))}
+      {copy.year ? (
+        <text
+          x={center}
+          y={label.y + label.h - 12}
+          textAnchor="middle"
+          fill={ink}
+          fontFamily="Manrope, sans-serif"
+          fontSize="11"
+          letterSpacing="0.6"
+        >
+          {copy.year}
+        </text>
+      ) : null}
+    </g>
   );
 }

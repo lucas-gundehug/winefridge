@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import type { Bottle } from "@/lib/types";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
+import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
 import { cn } from "@/lib/utils";
 
 const toneClass = {
@@ -22,17 +23,13 @@ export function BottleListItem({ bottle }: { bottle: Bottle }) {
       href={`/flaske/${bottle.id}`}
       className="group flex items-center gap-3 rounded-2xl border border-[rgba(196,163,90,0.14)] bg-[rgba(28,22,18,0.85)] px-3 py-3 transition hover:border-[rgba(196,163,90,0.35)] hover:bg-[rgba(36,28,22,0.95)]"
     >
-      <div className="relative flex h-16 w-10 shrink-0 items-end justify-center overflow-hidden rounded-lg bg-[rgba(42,34,24,0.9)]">
-        {bottle.imageDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bottle.imageDataUrl}
-            alt={bottle.name}
-            className="size-full object-cover transition duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="mb-1 h-12 w-4 rounded-b-md bg-gradient-to-b from-[#6b1c2a] to-[#3a0f18]" />
-        )}
+      <div className="relative flex h-16 w-11 shrink-0 items-end justify-center">
+        <WineBottleSvg
+          wineType={bottle.wineType}
+          imageUrl={bottle.imageDataUrl}
+          vintage={bottle.vintage}
+          className="h-16 w-auto"
+        />
         {qty > 1 ? (
           <span className="absolute top-0.5 right-0.5 rounded bg-[rgba(20,14,10,0.9)] px-1 text-[9px] text-[var(--brass)]">
             ×{qty}

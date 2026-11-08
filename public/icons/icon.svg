@@ -1,6 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Winefridge">
-  <rect width="512" height="512" rx="96" fill="#1f3d34"/>
-  <circle cx="270" cy="230" r="120" fill="#2d5246"/>
-  <path fill="#e8d6aa" d="M232 90h48c8 0 14 6 14 14v48c28 18 46 50 46 88 0 58-44 104-98 104s-98-46-98-104c0-38 18-70 46-88V104c0-8 6-14 14-14zm-2 78c-22 14-36 40-36 72 0 42 32 76 72 76s72-34 72-76c0-32-14-58-36-72h-72z"/>
-  <rect x="236" y="360" width="40" height="62" rx="10" fill="#e8d6aa"/>
+  <rect width="512" height="512" rx="112" fill="#120e0b"/>
+  <rect x="146" y="118" width="220" height="276" rx="28" fill="#1a120e" stroke="#6a4a2c" stroke-width="8"/>
+  <path fill="#3a1420" d="M232 168h48v28c22 12 40 32 40 54v112c0 18-18 30-64 30s-64-12-64-30V250c0-22 18-42 40-54v-28z"/>
+  <path fill="#7a2432" opacity="0.9" d="M240 176h32v24c16 10 28 24 28 42v100c0 14-12 22-44 22s-44-8-44-22V242c0-18 12-32 28-42v-24z"/>
+  <path fill="#fff6e4" opacity="0.28" d="M248 188c2 16 2 40 1 78" stroke="#fff6e4" stroke-width="3" stroke-linecap="round"/>
+  <rect x="226" y="150" width="60" height="32" rx="6" fill="#c4a35a"/>
+  <rect x="228" y="246" width="56" height="72" rx="3" fill="#f4e7c8"/>
+  <path d="M168 372h176c4 6 4 12 0 16H168c-4-4-4-10 0-16z" fill="#5a3d24"/>
+  <ellipse cx="256" cy="386" rx="62" ry="6" fill="#000" opacity="0.35"/>
 </svg>
