@@ -1,4 +1,12 @@
 // Minimal identity stub for Vercel (WineAPI guarded by IP rate limit when unverified).
+export type DevViewer = {
+  sub: string;
+  email: string;
+  name: string;
+  teamId: number;
+  teamRole: string;
+};
+
 export type Identity =
   | { verified: true; sub: string; simulated?: boolean }
   | { verified: false; reason: string };

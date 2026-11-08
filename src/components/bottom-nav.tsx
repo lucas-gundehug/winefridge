@@ -24,13 +24,19 @@ export function BottomNav() {
               <Link
                 href={href}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs transition-colors",
+                  "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-xs transition-colors",
                   active
                     ? "bg-[rgba(196,163,90,0.14)] text-[var(--brass)]"
                     : "text-muted-foreground hover:text-[var(--brass)]",
                 )}
               >
-                <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
+                {href === "/tilfoej" ? (
+                  <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Icon className="size-5" strokeWidth={2.4} />
+                  </span>
+                ) : (
+                  <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} />
+                )}
                 {label}
               </Link>
             </li>

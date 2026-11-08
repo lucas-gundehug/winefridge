@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { FridgeShelfGrid } from "@/components/wine/bottle-shelf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,24 +48,17 @@ export default function HomePage() {
 
   return (
     <div className="space-y-4">
-      <section className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl leading-none tracking-tight text-[var(--brass)]">
-            Køleskab
-          </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {!hydrated
-              ? "Åbner køleskabet…"
-              : filtering
-                ? `${filtered.length} af ${fridgeCount} flasker`
-                : `${fridgeCount} flasker på hylden`}
-          </p>
-        </div>
-        <Button asChild size="sm" className="shrink-0">
-          <Link href="/tilfoej">
-            <Plus /> Tilføj
-          </Link>
-        </Button>
+      <section>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl leading-none tracking-tight text-[var(--brass)]">
+          Køleskab
+        </h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {!hydrated
+            ? "Åbner køleskabet…"
+            : filtering
+              ? `${filtered.length} af ${fridgeCount} flasker`
+              : `${fridgeCount} flasker på hylden`}
+        </p>
       </section>
 
       {hydrated && inFridge.length > 0 ? (
@@ -77,14 +69,14 @@ export default function HomePage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Søg navn, producent, region…"
-              className="h-9 pr-9 pl-8"
+              className="pr-11 pl-10"
               aria-label="Søg i køleskabet"
             />
             {search ? (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-[var(--brass)]"
+                className="absolute top-1/2 right-1 flex size-11 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:text-[var(--brass)]"
                 aria-label="Ryd søgning"
               >
                 <X className="size-4" />
@@ -92,7 +84,8 @@ export default function HomePage() {
             ) : null}
           </div>
           {typesPresent.length > 1 ? (
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="relative">
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <FilterChip
                 active={typeFilter === "all"}
                 onClick={() => setTypeFilter("all")}
@@ -106,6 +99,11 @@ export default function HomePage() {
                   label={WINE_TYPE_LABELS[t]}
                 />
               ))}
+            </div>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#120e0b] to-transparent"
+            />
             </div>
           ) : null}
         </section>
@@ -152,7 +150,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-md border px-2.5 py-1 text-xs transition ${
+      className={`shrink-0 min-h-11 rounded-full border px-3.5 text-sm transition ${
         active
           ? "border-[rgba(196,163,90,0.55)] bg-[rgba(196,163,90,0.16)] text-[var(--brass)]"
           : "border-[rgba(196,163,90,0.16)] text-muted-foreground hover:border-[rgba(196,163,90,0.35)]"

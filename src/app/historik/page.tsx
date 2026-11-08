@@ -11,9 +11,6 @@ export default function HistoryPage() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--brass-dim)]">
-          Arkiv
-        </p>
         <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--brass)]">
           Historik
         </h1>

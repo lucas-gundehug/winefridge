@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, DoorOpen } from "lucide-react";
+import { ThumbBar } from "@/components/thumb-bar";
+import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,42 +45,47 @@ export default function BottlePage() {
   const take = Math.min(qty, Math.max(1, Number(takeCount) || 1));
 
   return (
-    <div className="space-y-5">
-      <Button asChild variant="ghost" size="sm" className="-ml-2 text-[var(--brass)]">
+    <div className="space-y-5 pb-28">
+      <Button asChild variant="ghost" className="-ml-2 h-11 min-h-11 px-3 text-[var(--brass)]">
         <Link href="/">
           <ArrowLeft /> Tilbage
         </Link>
       </Button>
 
       <div className="overflow-hidden rounded-2xl border border-[rgba(196,163,90,0.18)] bg-[rgba(28,22,18,0.92)] shadow-[0_24px_48px_-28px_rgba(0,0,0,0.8)]">
-        <div className="aspect-[4/3] bg-[rgba(42,34,24,0.9)]">
-          {bottle.imageDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
+        {bottle.imageDataUrl ? (
+          <div className="bg-[#1a120e]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={bottle.imageDataUrl}
-              alt={bottle.name}
-              className="size-full object-cover"
+              alt=""
+              className="max-h-48 w-full object-contain"
             />
-          ) : (
-            <div className="flex size-full items-center justify-center font-[family-name:var(--font-display)] text-[var(--brass-dim)]">
-              Ingen etiket
+          </div>
+        ) : null}
+        <div className="space-y-3 px-4 py-4">
+          <div className="flex items-end gap-3">
+            <WineBottleSvg
+              wineType={bottle.wineType}
+              imageUrl={bottle.imageDataUrl}
+              name={bottle.name}
+              vintage={bottle.vintage}
+              className="bottle-figure h-36 w-auto shrink-0"
+            />
+            <div className="min-w-0 pb-1">
+              <h1 className="font-[family-name:var(--font-display)] text-3xl leading-tight tracking-tight text-[var(--brass)]">
+                {bottle.name}
+              </h1>
+              <p className="mt-1 text-muted-foreground">
+                {[
+                  bottle.producer,
+                  bottle.vintage,
+                  bottle.wineType ? WINE_TYPE_LABELS[bottle.wineType] : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
             </div>
-          )}
-        </div>
-        <div className="space-y-3 px-5 py-5">
-          <div>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl leading-tight tracking-tight text-[var(--brass)]">
-              {bottle.name}
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-              {[
-                bottle.producer,
-                bottle.vintage,
-                bottle.wineType ? WINE_TYPE_LABELS[bottle.wineType] : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
           </div>
 
           <p className="inline-flex rounded-md bg-[rgba(196,163,90,0.14)] px-2 py-1 text-sm text-[var(--brass)]">
@@ -110,11 +117,11 @@ export default function BottlePage() {
       </div>
 
       {bottle.status === "in_fridge" ? (
-        <div className="space-y-2">
+        <ThumbBar>
           {!confirming ? (
             <Button
               size="lg"
-              className="h-11 w-full"
+              className="w-full"
               variant="destructive"
               onClick={() => {
                 setTakeCount("1");
@@ -124,7 +131,7 @@ export default function BottlePage() {
               <DoorOpen /> Tag ud af køleskabet
             </Button>
           ) : (
-            <div className="space-y-3 rounded-2xl border border-[rgba(196,163,90,0.2)] bg-[rgba(28,22,18,0.95)] p-4">
+            <div className="space-y-3 rounded-2xl border border-[rgba(196,163,90,0.2)] bg-[#1c1612] p-3">
               {qty > 1 ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="takeCount">Hvor mange flasker?</Label>
@@ -132,7 +139,7 @@ export default function BottlePage() {
                     <Input
                       id="takeCount"
                       inputMode="numeric"
-                      className="max-w-[5rem]"
+                      className="max-w-[5.5rem]"
                       value={takeCount}
                       onChange={(e) =>
                         setTakeCount(e.target.value.replace(/[^\d]/g, "").slice(0, 2))
@@ -141,7 +148,7 @@ export default function BottlePage() {
                     <span className="text-sm text-muted-foreground">af {qty}</span>
                     <button
                       type="button"
-                      className="ml-auto text-xs text-[var(--brass)] underline-offset-2 hover:underline"
+                      className="ml-auto min-h-11 px-2 text-sm text-[var(--brass)] underline-offset-2 hover:underline"
                       onClick={() => setTakeCount(String(qty))}
                     >
                       Alle
@@ -153,6 +160,7 @@ export default function BottlePage() {
               )}
               <div className="flex gap-2">
                 <Button
+                  size="lg"
                   className="flex-1"
                   variant="destructive"
                   onClick={() => {
@@ -166,13 +174,13 @@ export default function BottlePage() {
                       : "Ja, tag ud"
                     : `Tag ${take} ud`}
                 </Button>
-                <Button className="flex-1" variant="secondary" onClick={() => setConfirming(false)}>
+                <Button size="lg" className="flex-1" variant="secondary" onClick={() => setConfirming(false)}>
                   Annuller
                 </Button>
               </div>
             </div>
           )}
-        </div>
+        </ThumbBar>
       ) : null}
     </div>
   );

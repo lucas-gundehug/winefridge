@@ -23,7 +23,7 @@ export function suggestDrinkWindow(input: {
   };
 
   const type = input.wineType ?? "anden";
-  const [fromOffset, toOffset] = yearsFromVintage[type];
+  const [fromOffset, toOffset] = yearsFromVintage[type] ?? yearsFromVintage.anden;
 
   const from = new Date(Date.UTC(vintage + fromOffset, 0, 1));
   const to = new Date(Date.UTC(vintage + toOffset, 11, 31));
