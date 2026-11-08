@@ -13,6 +13,7 @@ export default function HomePage() {
   const { inFridge, fridgeCount, hydrated } = useBottles();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<WineType | "all">("all");
+  const [finderOpen, setFinderOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -45,24 +46,37 @@ export default function HomePage() {
   }, [inFridge]);
 
   const filtering = search.trim().length > 0 || typeFilter !== "all";
+  const showFinder = finderOpen || filtering;
+
+  const countLabel = !hydrated
+    ? "Åbner køleskabet…"
+    : filtering
+      ? `${filtered.length} af ${fridgeCount} flasker`
+      : `${fridgeCount} flasker på hylden`;
 
   return (
-    <div className="space-y-4">
-      <section>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl leading-none tracking-tight text-[var(--brass)]">
-          Køleskab
-        </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {!hydrated
-            ? "Åbner køleskabet…"
-            : filtering
-              ? `${filtered.length} af ${fridgeCount} flasker`
-              : `${fridgeCount} flasker på hylden`}
-        </p>
-      </section>
+    <div className="-mx-4 -mt-3 flex flex-1 flex-col">
+      <div className="flex items-center gap-2 px-3 py-1.5 pt-[max(0.4rem,env(safe-area-inset-top,0px))]">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-[family-name:var(--font-display)] text-[0.95rem] leading-tight text-[var(--brass)]">
+            Bossen(Anders) virtuelle vinkøleskab
+          </h1>
+          <p className="text-sm text-muted-foreground">{countLabel}</p>
+        </div>
+        <button
+          type="button"
+          className="inline-flex h-11 min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-[rgba(196,163,90,0.35)] px-3 text-sm text-[var(--brass)]"
+          aria-expanded={showFinder}
+          aria-controls="fridge-finder"
+          onClick={() => setFinderOpen((open) => !open)}
+        >
+          <Search className="size-4" />
+          Søg
+        </button>
+      </div>
 
-      {hydrated && inFridge.length > 0 ? (
-        <section className="space-y-2.5">
+      {showFinder && hydrated && inFridge.length > 0 ? (
+        <section id="fridge-finder" className="space-y-2 px-3 pb-2">
           <div className="relative">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -85,54 +99,64 @@ export default function HomePage() {
           </div>
           {typesPresent.length > 1 ? (
             <div className="relative">
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <FilterChip
-                active={typeFilter === "all"}
-                onClick={() => setTypeFilter("all")}
-                label="Alle"
-              />
-              {typesPresent.map((t) => (
+              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <FilterChip
-                  key={t}
-                  active={typeFilter === t}
-                  onClick={() => setTypeFilter(t)}
-                  label={WINE_TYPE_LABELS[t]}
+                  active={typeFilter === "all"}
+                  onClick={() => setTypeFilter("all")}
+                  label="Alle"
                 />
-              ))}
-            </div>
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[#120e0b] to-transparent"
-            />
+                {typesPresent.map((t) => (
+                  <FilterChip
+                    key={t}
+                    active={typeFilter === t}
+                    onClick={() => setTypeFilter(t)}
+                    label={WINE_TYPE_LABELS[t]}
+                  />
+                ))}
+              </div>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#120e0b] to-transparent"
+              />
             </div>
           ) : null}
         </section>
       ) : null}
 
-      {!hydrated ? (
-        <div className="fridge-cabinet h-64 animate-pulse rounded-2xl" />
-      ) : filtering && filtered.length === 0 ? (
-        <div className="rounded-2xl border border-[rgba(196,163,90,0.16)] bg-[rgba(28,22,18,0.7)] px-4 py-10 text-center">
-          <p className="font-medium text-[var(--brass)]">Ingen match</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Prøv et andet søgeord eller skift filter.
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="mt-4"
-            onClick={() => {
-              setSearch("");
-              setTypeFilter("all");
-            }}
-          >
-            Ryd filtre
-          </Button>
-        </div>
-      ) : (
-        <FridgeShelfGrid bottles={filtered} />
-      )}
+      <div className="flex min-h-0 flex-1 flex-col">
+        {!hydrated ? (
+          <div className="fridge-case flex-1 animate-pulse" />
+        ) : filtering && filtered.length === 0 ? (
+          <div className="fridge-case flex-1">
+            <div className="fridge-rail" aria-hidden />
+            <div className="fridge-opening">
+              <div className="fridge-jamb" aria-hidden />
+              <div className="fridge-interior flex flex-col items-center justify-center px-4 text-center">
+                <p className="font-medium text-[var(--brass)]">Ingen match</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Prøv et andet søgeord eller skift filter.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mt-4 h-11 min-h-11"
+                  onClick={() => {
+                    setSearch("");
+                    setTypeFilter("all");
+                    setFinderOpen(false);
+                  }}
+                >
+                  Ryd filtre
+                </Button>
+              </div>
+              <div className="fridge-jamb fridge-jamb-right" aria-hidden />
+            </div>
+            <div className="fridge-sill" aria-hidden />
+          </div>
+        ) : (
+          <FridgeShelfGrid bottles={filtered} />
+        )}
+      </div>
     </div>
   );
 }
@@ -150,7 +174,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 min-h-11 rounded-full border px-3.5 text-sm transition ${
+      className={`min-h-11 shrink-0 rounded-full border px-3.5 text-sm transition ${
         active
           ? "border-[rgba(196,163,90,0.55)] bg-[rgba(196,163,90,0.16)] text-[var(--brass)]"
           : "border-[rgba(196,163,90,0.16)] text-muted-foreground hover:border-[rgba(196,163,90,0.35)]"
