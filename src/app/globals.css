@@ -186,3 +186,13 @@
 html {
   scroll-padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
 }
+
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-inline-size: 0;
+}

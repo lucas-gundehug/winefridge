@@ -353,7 +353,7 @@ export function AddWineForm() {
             onChange={(e) => setForm({ ...form, producer: e.target.value })}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <Field label="Region" id="region">
             <Input
               id="region"
@@ -384,7 +384,7 @@ export function AddWineForm() {
             onChange={(e) => setForm({ ...form, addedAt: e.target.value })}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <Field label="Bedst fra" id="drinkFrom">
             <Input
               id="drinkFrom"
@@ -442,7 +442,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
       {children}
     </div>
