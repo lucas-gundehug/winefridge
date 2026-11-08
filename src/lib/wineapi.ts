@@ -1,5 +1,6 @@
-import type { WineSuggestion, WineType } from "@/lib/types";
+import type { WineSuggestion } from "@/lib/types";
 import { suggestDrinkWindow } from "@/lib/drink-window";
+import { mapWineType } from "@/lib/wine-types";
 
 type WineApiWine = {
   id?: string;
@@ -12,23 +13,6 @@ type WineApiWine = {
   grapes?: Array<{ name?: string }> | null;
   confidence?: number | null;
 };
-
-function mapWineType(raw?: string | null): WineType | undefined {
-  if (!raw) return undefined;
-  const t = raw.toLowerCase();
-  if (t.includes("red") || t.includes("rød") || t.includes("rouge")) return "rød";
-  if (t.includes("white") || t.includes("hvid") || t.includes("blanc")) return "hvid";
-  if (t.includes("rosé") || t.includes("rose") || t.includes("rosato")) return "rosé";
-  if (
-    t.includes("sparkling") ||
-    t.includes("mousser") ||
-    t.includes("champagne") ||
-    t.includes("cava") ||
-    t.includes("prosecco")
-  )
-    return "mousserende";
-  return "anden";
-}
 
 function wineryName(w: WineApiWine["winery"]) {
   if (!w) return undefined;
