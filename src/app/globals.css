@@ -48,41 +48,43 @@
 }
 
 :root {
-  --brand: #1f3d34;
-  --brand-soft: #d7e4dc;
-  --brand-foreground: #f4f7f4;
-  --background: #e8efe8;
-  --foreground: #15241f;
-  --card: #f7faf7;
-  --card-foreground: #15241f;
-  --popover: #f7faf7;
-  --popover-foreground: #15241f;
-  --primary: #1f3d34;
-  --primary-foreground: #f4f7f4;
-  --secondary: #dce7df;
-  --secondary-foreground: #1f3d34;
-  --muted: #d7e0d8;
-  --muted-foreground: #5a6b62;
-  --accent: #e8d6aa;
-  --accent-foreground: #2a2414;
-  --destructive: oklch(0.55 0.2 25);
-  --border: color-mix(in oklch, #1f3d34 14%, transparent);
-  --input: color-mix(in oklch, #1f3d34 16%, white);
-  --ring: #1f3d34;
-  --chart-1: #1f3d34;
-  --chart-2: #6f8f7d;
-  --chart-3: #e8d6aa;
-  --chart-4: #8a4b3c;
-  --chart-5: #2d4f6f;
-  --radius: 0.8rem;
-  --sidebar: #f7faf7;
-  --sidebar-foreground: #15241f;
-  --sidebar-primary: #1f3d34;
-  --sidebar-primary-foreground: #f4f7f4;
-  --sidebar-accent: #dce7df;
-  --sidebar-accent-foreground: #1f3d34;
-  --sidebar-border: color-mix(in oklch, #1f3d34 14%, transparent);
-  --sidebar-ring: #1f3d34;
+  --brand: #c4a35a;
+  --brand-soft: #2a2218;
+  --brand-foreground: #1a120c;
+  --brass: #d4b978;
+  --brass-dim: #9a8354;
+  --background: #120e0b;
+  --foreground: #ece3d4;
+  --card: #1c1612;
+  --card-foreground: #ece3d4;
+  --popover: #1c1612;
+  --popover-foreground: #ece3d4;
+  --primary: #c4a35a;
+  --primary-foreground: #1a120c;
+  --secondary: #2a2218;
+  --secondary-foreground: #ece3d4;
+  --muted: #241c16;
+  --muted-foreground: #a89880;
+  --accent: #3a2418;
+  --accent-foreground: #f0e2c8;
+  --destructive: oklch(0.58 0.2 25);
+  --border: color-mix(in oklch, #c4a35a 18%, transparent);
+  --input: #2a2218;
+  --ring: #c4a35a;
+  --chart-1: #c4a35a;
+  --chart-2: #6b1c2a;
+  --chart-3: #8a7050;
+  --chart-4: #3a2418;
+  --chart-5: #d4b978;
+  --radius: 0.7rem;
+  --sidebar: #1c1612;
+  --sidebar-foreground: #ece3d4;
+  --sidebar-primary: #c4a35a;
+  --sidebar-primary-foreground: #1a120c;
+  --sidebar-accent: #2a2218;
+  --sidebar-accent-foreground: #ece3d4;
+  --sidebar-border: color-mix(in oklch, #c4a35a 18%, transparent);
+  --sidebar-ring: #c4a35a;
 }
 
 @layer base {
@@ -99,10 +101,55 @@
 
 .app-backdrop {
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(232, 214, 170, 0.35), transparent 55%),
-    radial-gradient(900px 420px at 100% 0%, rgba(31, 61, 52, 0.18), transparent 50%),
-    linear-gradient(180deg, #eef4ee 0%, #e2ebe3 55%, #d8e4da 100%);
+    radial-gradient(900px 420px at 12% -8%, rgba(196, 163, 90, 0.16), transparent 55%),
+    radial-gradient(700px 380px at 100% 0%, rgba(80, 30, 20, 0.35), transparent 50%),
+    linear-gradient(180deg, #16110d 0%, #120e0b 45%, #0c0907 100%);
   background-attachment: fixed;
+}
+
+.fridge-cabinet {
+  background:
+    linear-gradient(180deg, rgba(28, 20, 14, 0.95), rgba(14, 10, 8, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(196, 163, 90, 0.12),
+    inset 0 0 0 1px rgba(196, 163, 90, 0.1),
+    0 24px 48px -28px rgba(0, 0, 0, 0.85);
+}
+
+.wood-shelf-row {
+  position: relative;
+}
+
+.wood-plank {
+  position: relative;
+  height: 0.7rem;
+  margin-top: -0.15rem;
+  border-radius: 0.15rem;
+  background:
+    linear-gradient(180deg, #6a4a28 0%, #4a3218 45%, #3a2814 100%);
+  box-shadow:
+    0 6px 10px -4px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(232, 200, 140, 0.25);
+}
+
+.wood-plank-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 220, 160, 0.08), transparent);
+}
+
+.wood-plank-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 11px,
+    rgba(0, 0, 0, 0.12) 11px,
+    rgba(0, 0, 0, 0.12) 12px
+  );
 }
 
 @keyframes rise-in {
