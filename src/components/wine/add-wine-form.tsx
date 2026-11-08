@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Camera, Loader2, Search, Sparkles } from "lucide-react";
 import { ThumbBar } from "@/components/thumb-bar";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fileToCompressedDataUrl } from "@/lib/image";
+import { readBarcode } from "@/lib/barcode";
 import { suggestDrinkWindow } from "@/lib/drink-window";
+import { readLabelText } from "@/lib/label-text";
+import { lookupOpenFoodFacts } from "@/lib/open-food-facts";
+import { cachedWineProfile, vintagesMatch, type WineProfile } from "@/lib/wine-profile";
 import type { IdentifyResponse, WineSuggestion, WineType } from "@/lib/types";
 import { WINE_TYPE_LABELS, WINE_TYPES } from "@/lib/wine-types";
 import { useBottles } from "@/hooks/use-bottles";
@@ -31,11 +35,19 @@ const emptyForm = {
 
 export function AddWineForm() {
   const router = useRouter();
-  const { addBottle } = useBottles();
+  const { addBottle, bottles } = useBottles();
   const inputRef = useRef<HTMLInputElement>(null);
+  const barcodeRef = useRef<HTMLInputElement>(null);
+  const imageBlob = useRef<Blob | null>(null);
+  const scanAbort = useRef<AbortController | null>(null);
   const [pending, startTransition] = useTransition();
   const [identifying, setIdentifying] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [scanBusy, setScanBusy] = useState<"ocr" | "barcode" | "gemini" | null>(null);
+  const [geminiOn, setGeminiOn] = useState(false);
+  const [geminiAsk, setGeminiAsk] = useState(false);
+  const stoppedRef = useRef({ wineapi: false, off: false, gemini: false });
+  const [stopped, setStopped] = useState(stoppedRef.current);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
@@ -43,13 +55,20 @@ export function AddWineForm() {
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [drinkEdited, setDrinkEdited] = useState(false);
+  const [matched, setMatched] = useState<{ id: string; vintage?: number } | null>(null);
+  const [wineProfile, setWineProfile] = useState<WineProfile | undefined>();
 
   function applySuggestion(s: WineSuggestion) {
+    const typedVintage = form.vintage.trim();
+    const suggestedVintage = s.vintage ? String(s.vintage) : "";
+    const keepTyped = Boolean(typedVintage && suggestedVintage && typedVintage !== suggestedVintage);
+    const vintageForWindow = keepTyped ? Number(typedVintage) : s.vintage;
     const window =
-      s.drinkFrom && s.drinkBestBy
+      !keepTyped && s.drinkFrom && s.drinkBestBy
         ? { drinkFrom: s.drinkFrom, drinkBestBy: s.drinkBestBy }
         : suggestDrinkWindow({
-            vintage: s.vintage,
+            vintage: vintageForWindow,
             wineType: s.wineType,
             addedAt: form.addedAt,
           });
@@ -57,66 +76,261 @@ export function AddWineForm() {
       ...f,
       name: s.name || f.name,
       producer: s.producer || "",
-      vintage: s.vintage ? String(s.vintage) : "",
-      wineType: s.wineType || "",
+      vintage: keepTyped ? f.vintage : suggestedVintage || f.vintage,
+      wineType: s.wineType || f.wineType,
       region: s.region || "",
       country: s.country || "",
       grapes: s.grapes || "",
-      drinkFrom: window.drinkFrom || "",
-      drinkBestBy: window.drinkBestBy || "",
+      drinkFrom: drinkEdited ? f.drinkFrom : window.drinkFrom || "",
+      drinkBestBy: drinkEdited ? f.drinkBestBy : window.drinkBestBy || "",
     }));
+    if (keepTyped) {
+      setMatched(null);
+      setWineProfile(undefined);
+      setInfo(`Forslaget er årgang ${suggestedVintage}. Din årgang ${typedVintage} er beholdt.`);
+      return;
+    }
+    if (s.externalWineId) {
+      const next = { id: s.externalWineId, vintage: s.vintage };
+      setMatched(next);
+      setWineProfile(undefined);
+      void enrichMatch(next.id, next.vintage);
+    } else {
+      setMatched(null);
+      setWineProfile(undefined);
+    }
+  }
+
+  async function enrichMatch(id: string, vintage?: number) {
+    const cached = cachedWineProfile(bottles, id, vintage);
+    if (cached) {
+      setWineProfile(cached);
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ id });
+      if (vintage !== undefined) params.set("vintage", String(vintage));
+      const res = await fetch(`/api/wine-detail?${params}`);
+      const data = (await res.json().catch(() => null)) as { profile?: WineProfile | null } | null;
+      if (data?.profile && vintagesMatch(vintage, data.profile.vintage)) setWineProfile(data.profile);
+    } catch {
+      // Saving the bottle does not depend on the detail call.
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/scanner-options", { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data: { gemini?: boolean }) => setGeminiOn(Boolean(data.gemini)))
+      .catch(() => setGeminiOn(false));
+    return () => controller.abort();
+  }, []);
+
+  function beginScan() {
+    scanAbort.current?.abort();
+    const controller = new AbortController();
+    scanAbort.current = controller;
+    return controller;
+  }
+
+  function stopScan() {
+    scanAbort.current?.abort();
+    setScanBusy(null);
+    setIdentifying(false);
+  }
+
+  function stopProvider(provider: "wineapi" | "off" | "gemini", message: string) {
+    stoppedRef.current = { ...stoppedRef.current, [provider]: true };
+    setStopped(stoppedRef.current);
+    setError(message);
+  }
+
+  async function searchQuery(text: string, signal?: AbortSignal) {
+    if (stoppedRef.current.wineapi || text.trim().length < 2) return;
+    setSearching(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/search-wine?q=${encodeURIComponent(text)}`, { signal });
+      const data = (await res.json()) as {
+        results?: WineSuggestion[];
+        error?: string;
+        message?: string;
+      };
+      if (res.status === 429) {
+        stopProvider("wineapi", data.error || "WineAPI er midlertidigt brugt op. Der søges ikke igen.");
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || "Søgning fejlede");
+      setSuggestions(data.results ?? []);
+      if (!(data.results && data.results.length)) {
+        setInfo(data.message || "Ingen resultater — prøv et andet navn.");
+      } else {
+        setInfo("Vælg et forslag, før noget gemmes.");
+      }
+    } catch (e) {
+      if (signal?.aborted) return;
+      setError(e instanceof Error ? e.message : "Søgning fejlede");
+    } finally {
+      setSearching(false);
+    }
   }
 
   async function onPickImage(file: File | null) {
     if (!file) return;
     setError(null);
     setInfo(null);
-    setIdentifying(true);
+    setGeminiAsk(false);
+    const controller = beginScan();
     try {
       const { dataUrl, blob } = await fileToCompressedDataUrl(file);
+      imageBlob.current = blob;
       setImageDataUrl(dataUrl);
+      if (stoppedRef.current.wineapi) {
+        setInfo("Billedet bliver på telefonen. WineAPI er brugt op, så det sendes ikke.");
+        return;
+      }
+      setIdentifying(true);
 
       const body = new FormData();
       body.append("image", blob, "label.jpg");
-      const res = await fetch("/api/identify-wine", { method: "POST", body });
+      const res = await fetch("/api/identify-wine", { method: "POST", body, signal: controller.signal });
       const data = (await res.json()) as IdentifyResponse & { error?: string };
+      if (res.status === 429) {
+        stopProvider("wineapi", data.error || "WineAPI er midlertidigt brugt op. Der prøves ikke igen.");
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Genkendelse fejlede");
 
-      setSuggestions(data.suggestions ?? []);
-      if (data.suggestion) {
-        applySuggestion(data.suggestion);
-        setInfo("Forslag fra WineAPI — ret gerne inden du gemmer.");
-      } else {
-        setInfo(data.message || "Ingen match. Udfyld manuelt eller søg.");
-      }
+      const list = data.suggestions ?? [];
+      const top = data.suggestion;
+      const withTop =
+        top && !list.some((item) => item.externalWineId === top.externalWineId && item.vintage === top.vintage)
+          ? [top, ...list]
+          : list;
+      setSuggestions(withTop);
+      setInfo(
+        withTop.length
+          ? "Vælg et forslag, før noget gemmes. Billedet er kun sendt til WineAPI."
+          : data.message || "Ingen match. Læs teksten på telefonen, eller udfyld selv.",
+      );
     } catch (e) {
+      if (controller.signal.aborted) return;
       setError(e instanceof Error ? e.message : "Kunne ikke læse billedet");
     } finally {
       setIdentifying(false);
     }
   }
 
-  async function onSearch() {
-    if (query.trim().length < 2) return;
-    setSearching(true);
+  async function onReadLocally() {
+    const blob = imageBlob.current;
+    if (!blob) return;
+    const controller = beginScan();
+    setScanBusy("ocr");
+    setError(null);
+    setInfo("Teksten læses på telefonen. Billedet sendes ikke videre.");
+    try {
+      const text = await readLabelText(blob, controller.signal);
+      if (controller.signal.aborted) return;
+      if (text.length < 3) {
+        setInfo("Kunne ikke læse tekst på telefonen. Skriv navnet, eller prøv stregkoden.");
+        return;
+      }
+      const queryText = text.slice(0, 120);
+      setQuery(queryText);
+      if (stoppedRef.current.wineapi) {
+        setInfo("Teksten er læst på telefonen. WineAPI er brugt op, så der søges ikke.");
+        return;
+      }
+      setInfo("Teksten er læst på telefonen. Den søges i WineAPI.");
+      await searchQuery(queryText, controller.signal);
+    } catch {
+      if (!controller.signal.aborted) setError("Tekstlæsningen stoppede.");
+    } finally {
+      setScanBusy(null);
+    }
+  }
+
+  async function onBarcode(file: File | null) {
+    if (!file || stoppedRef.current.off) return;
+    const controller = beginScan();
+    setScanBusy("barcode");
+    setError(null);
+    setInfo("Stregkoden læses på telefonen. Opslaget giver et navn, ikke en årgang.");
+    try {
+      const code = await readBarcode(file);
+      if (controller.signal.aborted) return;
+      if (!code) {
+        setInfo("Ingen stregkode i billedet.");
+        return;
+      }
+      const product = await lookupOpenFoodFacts(code, controller.signal);
+      if (!product) {
+        setInfo(`Stregkode ${code}. Open Food Facts havde intet navn, og årgangen er ikke bekræftet.`);
+        return;
+      }
+      setSuggestions([{ name: product.name, producer: product.producer }]);
+      setInfo(
+        "Navn fra Open Food Facts. Stregkoden bekræfter ikke årgangen. Data: Open Food Facts (ODbL). Vælg forslaget, hvis det passer.",
+      );
+    } catch (e) {
+      if (controller.signal.aborted) return;
+      if (e instanceof Error && "status" in e && e.status === 429) {
+        stopProvider("off", "Open Food Facts er midlertidigt brugt op. Der prøves ikke igen.");
+        return;
+      }
+      setError("Stregkoden kunne ikke slås op.");
+    } finally {
+      setScanBusy(null);
+    }
+  }
+
+  async function onGemini() {
+    const blob = imageBlob.current;
+    if (!blob || !geminiOn || stoppedRef.current.gemini) return;
+    const controller = beginScan();
+    setScanBusy("gemini");
+    setGeminiAsk(false);
     setError(null);
     try {
-      const res = await fetch(`/api/search-wine?q=${encodeURIComponent(query)}`);
+      const body = new FormData();
+      body.append("image", blob, "label.jpg");
+      const res = await fetch("/api/gemini-label", { method: "POST", body, signal: controller.signal });
       const data = (await res.json()) as {
-        results?: WineSuggestion[];
+        enabled?: boolean;
         error?: string;
-        message?: string;
+        query?: string;
+        name?: string;
+        producer?: string;
+        vintage?: string;
       };
-      if (!res.ok) throw new Error(data.error || "Søgning fejlede");
-      setSuggestions(data.results ?? []);
-      if (!(data.results && data.results.length)) {
-        setInfo(data.message || "Ingen resultater — prøv et andet navn.");
+      if (res.status === 429) {
+        stopProvider("gemini", data.error || "Gemini er midlertidigt brugt op. Der prøves ikke igen.");
+        return;
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Søgning fejlede");
+      if (!res.ok || data.enabled === false) {
+        setInfo("Gemini er ikke slået til.");
+        return;
+      }
+      const read = data.query || [data.producer, data.name, data.vintage].filter(Boolean).join(" ");
+      setInfo(
+        read
+          ? `Gemini læste «${read}». Bekræft forslaget, før det gemmes. Billedet er sendt til Google.`
+          : "Gemini læste ingen etiket.",
+      );
+      if (read) {
+        setQuery(read);
+        await searchQuery(read, controller.signal);
+      }
+    } catch {
+      if (!controller.signal.aborted) setError("Gemini svarede ikke.");
     } finally {
-      setSearching(false);
+      setScanBusy(null);
     }
+  }
+
+  async function onSearch() {
+    await searchQuery(query);
   }
 
   function onSave() {
@@ -153,6 +367,18 @@ export function AddWineForm() {
         drinkBestBy: window.drinkBestBy,
         quantity,
         status: "in_fridge",
+        drinkWindowSource: drinkEdited ? "manual" : "estimate",
+        ...(matched && vintagesMatch(vintage, matched.vintage)
+          ? {
+              externalWineId: matched.id,
+              ...(wineProfile ? { wineProfile, wineLookup: {
+                externalWineId: matched.id,
+                vintage: wineProfile.vintage,
+                at: new Date().toISOString(),
+                result: "ready" as const,
+              } } : {}),
+            }
+          : {}),
       });
       router.push("/");
     });
@@ -197,6 +423,75 @@ export function AddWineForm() {
           className="hidden"
           onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
         />
+        <div className="grid gap-2">
+          {imageDataUrl ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              disabled={scanBusy !== null || identifying}
+              onClick={() => void onReadLocally()}
+            >
+              {scanBusy === "ocr" ? <Loader2 className="animate-spin" /> : null}
+              Læs teksten på telefonen
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11"
+            disabled={scanBusy !== null || stopped.off}
+            onClick={() => barcodeRef.current?.click()}
+          >
+            {scanBusy === "barcode" ? <Loader2 className="animate-spin" /> : null}
+            Læs stregkode
+          </Button>
+          <input
+            ref={barcodeRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => void onBarcode(e.target.files?.[0] ?? null)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Stregkoden slås op hos Open Food Facts og siger ikke hvilken årgang det er.
+          </p>
+          {geminiOn && imageDataUrl ? (
+            geminiAsk ? (
+              <div className="space-y-2 rounded-xl border border-[rgba(196,163,90,0.2)] px-3 py-3">
+                <p className="text-sm">
+                  Billedet forlader telefonen og sendes til Google Gemini på det gratis niveau. Google må
+                  bruge de kald til at forbedre deres produkter. Der er ingen betalt reserve.
+                </p>
+                <div className="flex gap-2">
+                  <Button type="button" className="min-h-11 flex-1" onClick={() => void onGemini()}>
+                    Send dette billede
+                  </Button>
+                  <Button type="button" variant="ghost" className="min-h-11" onClick={() => setGeminiAsk(false)}>
+                    Annuller
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11"
+                disabled={scanBusy !== null || stopped.gemini}
+                onClick={() => setGeminiAsk(true)}
+              >
+                {scanBusy === "gemini" ? <Loader2 className="animate-spin" /> : null}
+                Spørg Gemini om etiketten
+              </Button>
+            )
+          ) : null}
+          {scanBusy || identifying ? (
+            <Button type="button" variant="ghost" className="min-h-11" onClick={stopScan}>
+              Stop
+            </Button>
+          ) : null}
+        </div>
       </section>
 
       <section className="space-y-2">
@@ -390,7 +685,10 @@ export function AddWineForm() {
               id="drinkFrom"
               type="date"
               value={form.drinkFrom}
-              onChange={(e) => setForm({ ...form, drinkFrom: e.target.value })}
+              onChange={(e) => {
+                setDrinkEdited(true);
+                setForm({ ...form, drinkFrom: e.target.value });
+              }}
             />
           </Field>
           <Field label="Bedst til" id="drinkBestBy">
@@ -398,7 +696,10 @@ export function AddWineForm() {
               id="drinkBestBy"
               type="date"
               value={form.drinkBestBy}
-              onChange={(e) => setForm({ ...form, drinkBestBy: e.target.value })}
+              onChange={(e) => {
+                setDrinkEdited(true);
+                setForm({ ...form, drinkBestBy: e.target.value });
+              }}
             />
           </Field>
         </div>

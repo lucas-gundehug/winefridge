@@ -1,3 +1,4 @@
+import type { WineProfile } from "@/lib/wine-profile";
 import type { WineType } from "@/lib/wine-types";
 
 export type { WineType } from "@/lib/wine-types";
@@ -21,6 +22,16 @@ export type Bottle = {
   notes?: string;
   /** How many identical bottles of this entry are in the fridge. */
   quantity: number;
+  /** Present only when we know how the drinking dates were chosen. */
+  drinkWindowSource?: "manual" | "estimate";
+  wineProfile?: WineProfile;
+  /** Set after one detail lookup so the page does not ask again. */
+  wineLookup?: {
+    externalWineId: string;
+    vintage: number | null;
+    at: string;
+    result: "ready" | "mismatch" | "unavailable";
+  };
   status: BottleStatus;
   removedAt?: string;
 };

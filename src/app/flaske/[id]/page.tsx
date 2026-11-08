@@ -2,28 +2,76 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, DoorOpen } from "lucide-react";
 import { ThumbBar } from "@/components/thumb-bar";
 import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
+import { WineFacts } from "@/components/wine/wine-facts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBottles } from "@/hooks/use-bottles";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
+import type { WineProfile } from "@/lib/wine-profile";
+import { vintagesMatch } from "@/lib/wine-profile";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
 
 export default function BottlePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { bottles, hydrated, takeOut } = useBottles();
+  const { bottles, hydrated, takeOut, addBottle } = useBottles();
   const [confirming, setConfirming] = useState(false);
   const [takeCount, setTakeCount] = useState("1");
+  const asked = useRef<string | null>(null);
 
   const bottle = useMemo(
     () => bottles.find((b) => b.id === params.id),
     [bottles, params.id],
   );
+
+  useEffect(() => {
+    if (!bottle?.externalWineId || bottle.wineProfile || bottle.wineLookup) return;
+    const key = `${bottle.id}:${bottle.externalWineId}:${bottle.vintage ?? ""}`;
+    if (asked.current === key) return;
+    asked.current = key;
+    const snapshot = bottle;
+    const id = snapshot.externalWineId;
+    if (!id) return;
+    const query = new URLSearchParams({ id });
+    if (snapshot.vintage !== undefined) query.set("vintage", String(snapshot.vintage));
+    fetch(`/api/wine-detail?${query}`)
+      .then(async (res) => {
+        const data = (await res.json().catch(() => null)) as {
+          profile?: WineProfile | null;
+          reason?: string;
+        } | null;
+        const profile = data?.profile ?? undefined;
+        const matched = Boolean(profile && vintagesMatch(snapshot.vintage, profile.vintage));
+        const result =
+          data?.reason === "vintage_mismatch" ? "mismatch" : matched ? "ready" : "unavailable";
+        addBottle({
+          ...snapshot,
+          ...(matched && profile ? { wineProfile: profile } : {}),
+          wineLookup: {
+            externalWineId: id,
+            vintage: profile?.vintage ?? snapshot.vintage ?? null,
+            at: new Date().toISOString(),
+            result,
+          },
+        });
+      })
+      .catch(() => {
+        addBottle({
+          ...snapshot,
+          wineLookup: {
+            externalWineId: id,
+            vintage: snapshot.vintage ?? null,
+            at: new Date().toISOString(),
+            result: "unavailable",
+          },
+        });
+      });
+  }, [bottle, addBottle]);
 
   if (!hydrated) {
     return <p className="text-sm text-muted-foreground">Henter flaske…</p>;
@@ -67,7 +115,7 @@ export default function BottlePage() {
           <div className="flex items-end gap-3">
             <WineBottleSvg
               wineType={bottle.wineType}
-              imageUrl={bottle.imageDataUrl}
+              imageUrl={bottle.imageDataUrl ?? bottle.wineProfile?.imageUrl}
               name={bottle.name}
               vintage={bottle.vintage}
               className="bottle-figure h-36 w-auto shrink-0"
@@ -107,12 +155,20 @@ export default function BottlePage() {
               <Item label="Taget ud" value={formatDateDa(bottle.removedAt)} />
             ) : null}
           </dl>
+          {bottle.drinkWindowSource ? (
+            <p className="text-xs text-muted-foreground">
+              {bottle.drinkWindowSource === "manual"
+                ? "Datoerne er dem, du har skrevet."
+                : "Datoerne er et skøn ud fra type og årgang."}
+            </p>
+          ) : null}
 
           {bottle.notes ? (
             <p className="rounded-xl bg-muted/80 px-3 py-2 text-sm text-muted-foreground">
               {bottle.notes}
             </p>
           ) : null}
+          {bottle.wineProfile ? <WineFacts profile={bottle.wineProfile} /> : null}
         </div>
       </div>
 

@@ -26,9 +26,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ results }, { headers: privateHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ukendt fejl";
+    const status = error instanceof Error && "status" in error && error.status === 429 ? 429 : 502;
     return NextResponse.json(
       { error: message },
-      { status: 502, headers: privateHeaders },
+      { status, headers: privateHeaders },
     );
   }
 }
