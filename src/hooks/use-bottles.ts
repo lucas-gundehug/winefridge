@@ -6,10 +6,12 @@ import {
   loadBottles,
   removeBottleFromFridge,
   saveBottles,
+  totalBottleCount,
   upsertBottle,
 } from "@/lib/storage";
 
 let memory: Bottle[] = [];
+const EMPTY: Bottle[] = [];
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -26,7 +28,7 @@ function getSnapshot() {
 }
 
 function getServerSnapshot(): Bottle[] {
-  return [];
+  return EMPTY;
 }
 
 function setMemory(next: Bottle[]) {
@@ -48,8 +50,8 @@ export function useBottles() {
     setMemory(next);
   }, []);
 
-  const takeOut = useCallback((id: string) => {
-    const next = removeBottleFromFridge(id);
+  const takeOut = useCallback((id: string, count = 1) => {
+    const next = removeBottleFromFridge(id, count);
     setMemory(next);
   }, []);
 
@@ -58,11 +60,14 @@ export function useBottles() {
     setMemory(next);
   }, []);
 
+  const inFridge = bottles.filter((b) => b.status === "in_fridge");
+
   return {
     bottles,
     hydrated,
-    inFridge: bottles.filter((b) => b.status === "in_fridge"),
+    inFridge,
     history: bottles.filter((b) => b.status === "removed"),
+    fridgeCount: totalBottleCount(inFridge),
     addBottle,
     takeOut,
     replaceAll,
