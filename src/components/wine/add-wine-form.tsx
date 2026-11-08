@@ -10,9 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { fileToCompressedDataUrl } from "@/lib/image";
 import { suggestDrinkWindow } from "@/lib/drink-window";
 import type { IdentifyResponse, WineSuggestion, WineType } from "@/lib/types";
+import { WINE_TYPE_LABELS, WINE_TYPES } from "@/lib/wine-types";
 import { useBottles } from "@/hooks/use-bottles";
-
-const wineTypes: WineType[] = ["rød", "hvid", "rosé", "mousserende", "anden"];
 
 const emptyForm = {
   name: "",
@@ -23,6 +22,7 @@ const emptyForm = {
   country: "",
   grapes: "",
   notes: "",
+  quantity: "1",
   addedAt: new Date().toISOString().slice(0, 10),
   drinkFrom: "",
   drinkBestBy: "",
@@ -124,6 +124,7 @@ export function AddWineForm() {
     }
     const wineType = form.wineType || undefined;
     const vintage = form.vintage ? Number(form.vintage) : undefined;
+    const quantity = Math.min(99, Math.max(1, Number(form.quantity) || 1));
     const window =
       form.drinkFrom && form.drinkBestBy
         ? { drinkFrom: form.drinkFrom, drinkBestBy: form.drinkBestBy }
@@ -148,6 +149,7 @@ export function AddWineForm() {
         addedAt: form.addedAt,
         drinkFrom: window.drinkFrom,
         drinkBestBy: window.drinkBestBy,
+        quantity,
         status: "in_fridge",
       });
       router.push("/");
@@ -161,7 +163,7 @@ export function AddWineForm() {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={identifying}
-          className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl border border-dashed border-[var(--brand)]/35 bg-[var(--brand-soft)]/70 px-4 py-10 text-center transition hover:bg-[var(--brand-soft)]"
+          className="relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-3xl border border-dashed border-[rgba(196,163,90,0.35)] bg-[rgba(42,34,24,0.75)] px-4 py-10 text-center transition hover:bg-[rgba(52,40,28,0.9)]"
         >
           {imageDataUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -228,11 +230,18 @@ export function AddWineForm() {
                 <button
                   type="button"
                   onClick={() => applySuggestion(s)}
-                  className="w-full rounded-xl bg-white/70 px-3 py-2 text-left transition hover:bg-white"
+                  className="w-full rounded-xl border border-[rgba(196,163,90,0.14)] bg-[rgba(28,22,18,0.9)] px-3 py-2 text-left transition hover:border-[rgba(196,163,90,0.35)]"
                 >
                   <p className="font-medium leading-tight">{s.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {[s.producer, s.vintage, s.region].filter(Boolean).join(" · ")}
+                    {[
+                      s.producer,
+                      s.vintage,
+                      s.wineType ? WINE_TYPE_LABELS[s.wineType] : null,
+                      s.region,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </button>
               </li>
@@ -246,7 +255,7 @@ export function AddWineForm() {
           className={
             error
               ? "rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              : "rounded-xl bg-[var(--brand-soft)] px-3 py-2 text-sm text-[var(--brand)]"
+              : "rounded-xl bg-[rgba(196,163,90,0.12)] px-3 py-2 text-sm text-[var(--brass)]"
           }
         >
           {error || info}
@@ -289,14 +298,49 @@ export function AddWineForm() {
               }
             >
               <option value="">Vælg…</option>
-              {wineTypes.map((t) => (
+              {WINE_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {WINE_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
           </Field>
         </div>
+        <Field label="Antal flasker" id="quantity">
+          <div className="flex items-center gap-2">
+            <Input
+              id="quantity"
+              inputMode="numeric"
+              className="max-w-[6rem]"
+              value={form.quantity}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  quantity: e.target.value.replace(/[^\d]/g, "").slice(0, 2),
+                })
+              }
+            />
+            <div className="flex gap-1.5">
+              {[1, 6, 12].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setForm({ ...form, quantity: String(n) })}
+                  className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                    form.quantity === String(n)
+                      ? "border-[rgba(196,163,90,0.55)] bg-[rgba(196,163,90,0.16)] text-[var(--brass)]"
+                      : "border-[rgba(196,163,90,0.18)] text-muted-foreground hover:border-[rgba(196,163,90,0.35)]"
+                  }`}
+                >
+                  {n === 1 ? "1 flaske" : `${n} (kasse)`}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Købt en kasse? Vælg antal, så tælles de som én post på hylden.
+          </p>
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Region" id="region">
             <Input
@@ -364,7 +408,9 @@ export function AddWineForm() {
         disabled={pending || identifying}
       >
         {pending ? <Loader2 className="animate-spin" /> : null}
-        Gem i køleskabet
+        {Number(form.quantity) > 1
+          ? `Gem ${Math.min(99, Math.max(1, Number(form.quantity) || 1))} flasker`
+          : "Gem i køleskabet"}
       </Button>
     </div>
   );
