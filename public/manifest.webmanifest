@@ -4,8 +4,8 @@
   "description": "Personligt vinkøleskab med foto-registrering",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1f3d34",
-  "theme_color": "#1f3d34",
+  "background_color": "#120e0b",
+  "theme_color": "#120e0b",
   "orientation": "portrait-primary",
   "icons": [
     {
