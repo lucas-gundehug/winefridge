@@ -11,19 +11,31 @@ export default function HistoryPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Historik</h1>
-        <p className="text-sm text-muted-foreground">Flasker du har taget ud af køleskabet.</p>
+        <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--brass-dim)]">
+          Arkiv
+        </p>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--brass)]">
+          Historik
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Flasker du har taget ud af køleskabet.
+        </p>
       </div>
 
       {!hydrated ? (
         <p className="text-sm text-muted-foreground">Henter…</p>
       ) : history.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[var(--brand)]/30 bg-white/40 px-5 py-8">
-          <p className="font-medium">Ingen historik endnu</p>
+        <div className="rounded-2xl border border-dashed border-[rgba(196,163,90,0.28)] bg-[rgba(28,22,18,0.7)] px-5 py-8">
+          <p className="font-[family-name:var(--font-display)] text-lg text-[var(--brass)]">
+            Ingen historik endnu
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
             Når du tager en flaske ud, dukker den op her.
           </p>
-          <Link href="/" className="mt-3 inline-block text-sm text-[var(--brand)] underline-offset-4 hover:underline">
+          <Link
+            href="/"
+            className="mt-3 inline-block text-sm text-[var(--brass)] underline-offset-4 hover:underline"
+          >
             Tilbage til køleskabet
           </Link>
         </div>

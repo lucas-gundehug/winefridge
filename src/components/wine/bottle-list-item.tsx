@@ -2,25 +2,27 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { Bottle } from "@/lib/types";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
+import { WINE_TYPE_LABELS } from "@/lib/wine-types";
 import { cn } from "@/lib/utils";
 
 const toneClass = {
-  soon: "text-amber-800 bg-amber-100",
-  peak: "text-emerald-900 bg-emerald-100",
-  wait: "text-sky-900 bg-sky-100",
-  past: "text-stone-700 bg-stone-200",
+  soon: "text-amber-200 bg-amber-950/60",
+  peak: "text-emerald-200 bg-emerald-950/50",
+  wait: "text-sky-200 bg-sky-950/50",
+  past: "text-stone-300 bg-stone-800/70",
   unknown: "text-muted-foreground bg-muted",
 } as const;
 
 export function BottleListItem({ bottle }: { bottle: Bottle }) {
   const status = drinkStatusLabel(bottle);
+  const qty = Math.max(1, bottle.quantity || 1);
 
   return (
     <Link
       href={`/flaske/${bottle.id}`}
-      className="group flex items-center gap-3 rounded-2xl border border-transparent bg-white/55 px-3 py-3 shadow-[0_1px_0_rgba(40,20,10,0.04)] transition hover:border-[var(--brand-soft)] hover:bg-white/80"
+      className="group flex items-center gap-3 rounded-2xl border border-[rgba(196,163,90,0.14)] bg-[rgba(28,22,18,0.85)] px-3 py-3 transition hover:border-[rgba(196,163,90,0.35)] hover:bg-[rgba(36,28,22,0.95)]"
     >
-      <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-[var(--brand-soft)]">
+      <div className="relative flex h-16 w-10 shrink-0 items-end justify-center overflow-hidden rounded-lg bg-[rgba(42,34,24,0.9)]">
         {bottle.imageDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -29,16 +31,27 @@ export function BottleListItem({ bottle }: { bottle: Bottle }) {
             className="size-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex size-full items-center justify-center text-xs text-[var(--brand)]">
-            Vin
-          </div>
+          <div className="mb-1 h-12 w-4 rounded-b-md bg-gradient-to-b from-[#6b1c2a] to-[#3a0f18]" />
         )}
+        {qty > 1 ? (
+          <span className="absolute top-0.5 right-0.5 rounded bg-[rgba(20,14,10,0.9)] px-1 text-[9px] text-[var(--brass)]">
+            ×{qty}
+          </span>
+        ) : null}
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium leading-tight">{bottle.name}</p>
+        <p className="truncate font-[family-name:var(--font-display)] text-[var(--brass)]">
+          {bottle.name}
+        </p>
         <p className="truncate text-sm text-muted-foreground">
-          {[bottle.producer, bottle.vintage].filter(Boolean).join(" · ") || "Uden detaljer"}
+          {[
+            bottle.producer,
+            bottle.vintage,
+            bottle.wineType ? WINE_TYPE_LABELS[bottle.wineType] : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "Uden detaljer"}
         </p>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <span
@@ -55,7 +68,7 @@ export function BottleListItem({ bottle }: { bottle: Bottle }) {
         </div>
       </div>
 
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[var(--brass)]" />
     </Link>
   );
 }

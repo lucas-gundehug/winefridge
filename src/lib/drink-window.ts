@@ -14,6 +14,11 @@ export function suggestDrinkWindow(input: {
     hvid: [0, 4],
     rosé: [0, 2],
     rød: [1, 8],
+    portvin: [5, 30],
+    madeira: [5, 40],
+    sherry: [2, 20],
+    dessert: [2, 15],
+    orange: [0, 6],
     anden: [0, 5],
   };
 
