@@ -25,6 +25,12 @@ export type Bottle = {
   /** Present only when we know how the drinking dates were chosen. */
   drinkWindowSource?: "manual" | "estimate";
   wineProfile?: WineProfile;
+  /** Confirmed GrapeMinds catalog identity. The drinking window itself is not stored. */
+  grapeMatch?: {
+    wineId: number;
+    displayName: string;
+    producer: string;
+  };
   /** Set after one detail lookup so the page does not ask again. */
   wineLookup?: {
     externalWineId: string;

@@ -78,10 +78,7 @@ export function geminiEnabled(env: Record<string, string | undefined>): boolean 
   return Boolean(env.GEMINI_API_KEY?.trim());
 }
 
-/**
- * A key alone does not enable GrapeMinds. The free-plan length and the paid licence
- * for stored text are still unverified, so the app must not call the API.
- */
-export function grapemindsEnabled(_env?: Record<string, string | undefined>): boolean {
-  return false;
+/** True only when the server holds GRAPEMINDS_API_KEY. The value never reaches the browser. */
+export function grapemindsEnabled(env: Record<string, string | undefined>): boolean {
+  return Boolean(env.GRAPEMINDS_API_KEY?.trim());
 }

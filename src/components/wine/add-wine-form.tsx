@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Camera, Loader2, Search, Sparkles } from "lucide-react";
 import { ThumbBar } from "@/components/thumb-bar";
+import { GrapeWindow } from "@/components/wine/grape-window";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { readBarcode } from "@/lib/barcode";
 import { suggestDrinkWindow } from "@/lib/drink-window";
 import { readLabelText } from "@/lib/label-text";
 import { lookupOpenFoodFacts } from "@/lib/open-food-facts";
+import { savedDrinkDates, type GrapeIdentity } from "@/lib/grapeminds";
 import { cachedWineProfile, vintagesMatch, type WineProfile } from "@/lib/wine-profile";
 import type { IdentifyResponse, WineSuggestion, WineType } from "@/lib/types";
 import { WINE_TYPE_LABELS, WINE_TYPES } from "@/lib/wine-types";
@@ -39,14 +41,30 @@ export function AddWineForm() {
   const inputRef = useRef<HTMLInputElement>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
   const imageBlob = useRef<Blob | null>(null);
+  const grapeRequest = useRef<{
+    producer?: string;
+    name: string;
+    vintage?: number;
+    wineId?: number;
+    displayName?: string;
+    choiceProducer?: string;
+  } | null>(null);
   const scanAbort = useRef<AbortController | null>(null);
   const [pending, startTransition] = useTransition();
   const [identifying, setIdentifying] = useState(false);
   const [searching, setSearching] = useState(false);
   const [scanBusy, setScanBusy] = useState<"ocr" | "barcode" | "gemini" | null>(null);
   const [geminiOn, setGeminiOn] = useState(false);
+  const [grapemindsOn, setGrapemindsOn] = useState(false);
+  const [grape, setGrape] = useState<{
+    status: "loading" | "ready" | "ambiguous" | "unavailable" | "pending" | "stopped" | "missing_key";
+    identity?: GrapeIdentity;
+    choices?: GrapeIdentity[];
+    fromOffset?: number;
+    toOffset?: number;
+  } | null>(null);
   const [geminiAsk, setGeminiAsk] = useState(false);
-  const stoppedRef = useRef({ wineapi: false, off: false, gemini: false });
+  const stoppedRef = useRef({ wineapi: false, off: false, gemini: false, grapeminds: false });
   const [stopped, setStopped] = useState(stoppedRef.current);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -84,6 +102,12 @@ export function AddWineForm() {
       drinkFrom: drinkEdited ? f.drinkFrom : window.drinkFrom || "",
       drinkBestBy: drinkEdited ? f.drinkBestBy : window.drinkBestBy || "",
     }));
+    const vintageUsed = keepTyped ? Number(typedVintage) : s.vintage;
+    if (s.externalWineId) {
+      void loadGrape({ producer: s.producer, name: s.name, vintage: vintageUsed });
+    } else {
+      setGrape(null);
+    }
     if (keepTyped) {
       setMatched(null);
       setWineProfile(undefined);
@@ -122,10 +146,22 @@ export function AddWineForm() {
     const controller = new AbortController();
     fetch("/api/scanner-options", { signal: controller.signal })
       .then((res) => res.json())
-      .then((data: { gemini?: boolean }) => setGeminiOn(Boolean(data.gemini)))
-      .catch(() => setGeminiOn(false));
+      .then((data: { gemini?: boolean; grapeminds?: boolean }) => {
+        setGeminiOn(Boolean(data.gemini));
+        setGrapemindsOn(Boolean(data.grapeminds));
+      })
+      .catch(() => {
+        setGeminiOn(false);
+        setGrapemindsOn(false);
+      });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (grapemindsOn && grapeRequest.current) void loadGrape(grapeRequest.current);
+    // Retry the confirmed WineAPI match once the server says the key is present.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grapemindsOn]);
 
   function beginScan() {
     scanAbort.current?.abort();
@@ -140,7 +176,63 @@ export function AddWineForm() {
     setIdentifying(false);
   }
 
-  function stopProvider(provider: "wineapi" | "off" | "gemini", message: string) {
+  async function loadGrape(input: {
+    producer?: string;
+    name: string;
+    vintage?: number;
+    wineId?: number;
+    displayName?: string;
+    choiceProducer?: string;
+  }) {
+    grapeRequest.current = input;
+    if (!grapemindsOn || stoppedRef.current.grapeminds) return;
+    setGrape((current) => ({
+      status: "loading",
+      identity: input.wineId
+        ? {
+            wineId: input.wineId,
+            displayName: input.displayName ?? "",
+            producer: input.choiceProducer ?? input.producer ?? "",
+          }
+        : current?.identity,
+      choices: current?.choices,
+    }));
+    try {
+      const res = await fetch("/api/grapeminds-window", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        enabled?: boolean;
+        status?: "ready" | "ambiguous" | "unavailable" | "pending" | "stopped";
+        identity?: GrapeIdentity;
+        choices?: GrapeIdentity[];
+        fromOffset?: number;
+        toOffset?: number;
+      } | null;
+      if (!data?.enabled) {
+        setGrape({ status: "missing_key" });
+        return;
+      }
+      if (data.status === "stopped") {
+        stopProvider("grapeminds", "GrapeMinds er ikke tilgængeligt. Der prøves ikke igen.");
+        setGrape({ status: "stopped", identity: data.identity });
+        return;
+      }
+      setGrape({
+        status: data.status ?? "unavailable",
+        identity: data.identity,
+        choices: data.choices,
+        fromOffset: data.fromOffset,
+        toOffset: data.toOffset,
+      });
+    } catch {
+      setGrape({ status: "unavailable" });
+    }
+  }
+
+  function stopProvider(provider: "wineapi" | "off" | "gemini" | "grapeminds", message: string) {
     stoppedRef.current = { ...stoppedRef.current, [provider]: true };
     setStopped(stoppedRef.current);
     setError(message);
@@ -341,14 +433,16 @@ export function AddWineForm() {
     const wineType = form.wineType || undefined;
     const vintage = form.vintage ? Number(form.vintage) : undefined;
     const quantity = Math.min(99, Math.max(1, Number(form.quantity) || 1));
-    const window =
-      form.drinkFrom && form.drinkBestBy
-        ? { drinkFrom: form.drinkFrom, drinkBestBy: form.drinkBestBy }
-        : suggestDrinkWindow({
-            vintage,
-            wineType,
-            addedAt: form.addedAt,
-          });
+    const dates = savedDrinkDates({
+      drinkFrom: form.drinkFrom,
+      drinkBestBy: form.drinkBestBy,
+      edited: drinkEdited,
+      fallback: suggestDrinkWindow({
+        vintage,
+        wineType,
+        addedAt: form.addedAt,
+      }),
+    });
 
     startTransition(() => {
       addBottle({
@@ -363,11 +457,14 @@ export function AddWineForm() {
         notes: form.notes.trim() || undefined,
         imageDataUrl,
         addedAt: form.addedAt,
-        drinkFrom: window.drinkFrom,
-        drinkBestBy: window.drinkBestBy,
+        drinkFrom: dates.drinkFrom,
+        drinkBestBy: dates.drinkBestBy,
         quantity,
         status: "in_fridge",
-        drinkWindowSource: drinkEdited ? "manual" : "estimate",
+        drinkWindowSource: dates.source,
+        ...(grape?.identity && (grape.status === "ready" || grape.status === "pending")
+          ? { grapeMatch: grape.identity }
+          : {}),
         ...(matched && vintagesMatch(vintage, matched.vintage)
           ? {
               externalWineId: matched.id,
@@ -547,6 +644,39 @@ export function AddWineForm() {
         </section>
       ) : null}
 
+      {grape && grapemindsOn ? (
+        <GrapeWindow
+          status={grape.status}
+          identity={grape.identity}
+          choices={grape.choices}
+          fromOffset={grape.fromOffset}
+          toOffset={grape.toOffset}
+          vintage={/^\d{4}$/.test(form.vintage) ? Number(form.vintage) : undefined}
+          onChoose={(choice) =>
+            void loadGrape({
+              producer: form.producer,
+              name: form.name,
+              vintage: /^\d{4}$/.test(form.vintage) ? Number(form.vintage) : undefined,
+              wineId: choice.wineId,
+              displayName: choice.displayName,
+              choiceProducer: choice.producer,
+            })
+          }
+          onRetry={() =>
+            grape.identity
+              ? void loadGrape({
+                  producer: form.producer,
+                  name: form.name,
+                  vintage: /^\d{4}$/.test(form.vintage) ? Number(form.vintage) : undefined,
+                  wineId: grape.identity.wineId,
+                  displayName: grape.identity.displayName,
+                  choiceProducer: grape.identity.producer,
+                })
+              : undefined
+          }
+        />
+      ) : null}
+
       {(error || info) && (
         <p
           className={
@@ -564,7 +694,10 @@ export function AddWineForm() {
           <Input
             id="name"
             value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onChange={(e) => {
+              setGrape(null);
+              setForm({ ...form, name: e.target.value });
+            }}
             placeholder="Vinens navn"
           />
         </Field>
@@ -645,7 +778,10 @@ export function AddWineForm() {
           <Input
             id="producer"
             value={form.producer}
-            onChange={(e) => setForm({ ...form, producer: e.target.value })}
+            onChange={(e) => {
+              setGrape(null);
+              setForm({ ...form, producer: e.target.value });
+            }}
           />
         </Field>
         <div className="grid min-w-0 grid-cols-1 gap-3 min-[480px]:grid-cols-2">

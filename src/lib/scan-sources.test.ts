@@ -63,10 +63,11 @@ test("calendar-like GrapeMinds numbers are rejected", () => {
   assert.equal(yearsAfterVintage(8, 3, 2020).ok, false);
 });
 
-test("Gemini needs a key and GrapeMinds stays off until the licence is confirmed", () => {
+test("optional providers follow their own server keys", () => {
   assert.equal(geminiEnabled({}), false);
   assert.equal(geminiEnabled({ GEMINI_API_KEY: "  " }), false);
   assert.equal(geminiEnabled({ GEMINI_API_KEY: "present" }), true);
   assert.equal(grapemindsEnabled({}), false);
-  assert.equal(grapemindsEnabled({ GRAPEMINDS_API_KEY: "present" }), false);
+  assert.equal(grapemindsEnabled({ GRAPEMINDS_API_KEY: "  " }), false);
+  assert.equal(grapemindsEnabled({ GRAPEMINDS_API_KEY: "present" }), true);
 });

@@ -6,12 +6,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, DoorOpen } from "lucide-react";
 import { ThumbBar } from "@/components/thumb-bar";
 import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
+import { GrapeWindow, type GrapeWindowStatus } from "@/components/wine/grape-window";
 import { WineFacts } from "@/components/wine/wine-facts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBottles } from "@/hooks/use-bottles";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
+import type { GrapeIdentity } from "@/lib/grapeminds";
 import type { WineProfile } from "@/lib/wine-profile";
 import { vintagesMatch } from "@/lib/wine-profile";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
@@ -23,6 +25,13 @@ export default function BottlePage() {
   const [confirming, setConfirming] = useState(false);
   const [takeCount, setTakeCount] = useState("1");
   const asked = useRef<string | null>(null);
+  const grapeAsked = useRef<string | null>(null);
+  const [grape, setGrape] = useState<{
+    status: GrapeWindowStatus;
+    identity?: GrapeIdentity;
+    fromOffset?: number;
+    toOffset?: number;
+  } | null>(null);
 
   const bottle = useMemo(
     () => bottles.find((b) => b.id === params.id),
@@ -72,6 +81,55 @@ export default function BottlePage() {
         });
       });
   }, [bottle, addBottle]);
+
+  function loadGrapeWindow(match: GrapeIdentity, vintage: number | undefined, force = false) {
+    const key = `${match.wineId}:${vintage ?? ""}`;
+    if (!force && grapeAsked.current === key) return;
+    grapeAsked.current = key;
+    setGrape({ status: "loading", identity: match });
+    fetch("/api/grapeminds-window", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: match.displayName,
+        producer: match.producer,
+        vintage,
+        wineId: match.wineId,
+        displayName: match.displayName,
+        choiceProducer: match.producer,
+      }),
+    })
+      .then(async (res) => {
+        const data = (await res.json().catch(() => null)) as {
+          enabled?: boolean;
+          status?: GrapeWindowStatus;
+          identity?: GrapeIdentity;
+          fromOffset?: number;
+          toOffset?: number;
+        } | null;
+        if (!data?.enabled) {
+          setGrape({ status: "missing_key", identity: match });
+          return;
+        }
+        if (data.status === "stopped") {
+          grapeAsked.current = `stopped:${key}`;
+        }
+        setGrape({
+          status: data.status ?? "unavailable",
+          identity: data.identity ?? match,
+          fromOffset: data.fromOffset,
+          toOffset: data.toOffset,
+        });
+      })
+      .catch(() => setGrape({ status: "unavailable", identity: match }));
+  }
+
+  useEffect(() => {
+    if (!bottle?.grapeMatch) return;
+    loadGrapeWindow(bottle.grapeMatch, bottle.vintage);
+    // The match id and vintage decide the request. The function identity changes every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bottle?.id, bottle?.grapeMatch?.wineId, bottle?.vintage]);
 
   if (!hydrated) {
     return <p className="text-sm text-muted-foreground">Henter flaske…</p>;
@@ -155,6 +213,20 @@ export default function BottlePage() {
               <Item label="Taget ud" value={formatDateDa(bottle.removedAt)} />
             ) : null}
           </dl>
+          {bottle.grapeMatch ? (
+            <GrapeWindow
+              status={grape?.status ?? "loading"}
+              identity={grape?.identity ?? bottle.grapeMatch}
+              fromOffset={grape?.fromOffset}
+              toOffset={grape?.toOffset}
+              vintage={bottle.vintage}
+              onRetry={
+                grape?.status === "pending"
+                  ? () => loadGrapeWindow(bottle.grapeMatch!, bottle.vintage, true)
+                  : undefined
+              }
+            />
+          ) : null}
           {bottle.drinkWindowSource ? (
             <p className="text-xs text-muted-foreground">
               {bottle.drinkWindowSource === "manual"
