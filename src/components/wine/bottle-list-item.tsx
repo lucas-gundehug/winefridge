@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { Bottle } from "@/lib/types";
+import { effectiveDrinkWindow } from "@/lib/effective-window";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
+import { useGrapeWindows } from "@/lib/grape-session";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
 import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
 import { cn } from "@/lib/utils";
@@ -15,7 +19,16 @@ const toneClass = {
 } as const;
 
 export function BottleListItem({ bottle }: { bottle: Bottle }) {
-  const status = drinkStatusLabel(bottle);
+  const grapes = useGrapeWindows();
+  const window = effectiveDrinkWindow({
+    drinkFrom: bottle.drinkFrom,
+    drinkBestBy: bottle.drinkBestBy,
+    provenance: bottle.drinkWindowSource,
+    drinkWindowVintage: bottle.drinkWindowVintage,
+    vintage: bottle.vintage,
+    grape: grapes[bottle.id] ?? null,
+  });
+  const status = drinkStatusLabel(window);
   const qty = Math.max(1, bottle.quantity || 1);
 
   return (

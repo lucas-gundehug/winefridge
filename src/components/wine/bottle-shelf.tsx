@@ -1,10 +1,23 @@
+"use client";
+
 import Link from "next/link";
 import type { Bottle } from "@/lib/types";
+import { effectiveDrinkWindow } from "@/lib/effective-window";
+import { useGrapeWindows } from "@/lib/grape-session";
 import { shelfReadinessLine, groupShelfRows } from "@/lib/shelf";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
 import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
 
 export function BottleShelfSlot({ bottle }: { bottle: Bottle }) {
+  const grapes = useGrapeWindows();
+  const window = effectiveDrinkWindow({
+    drinkFrom: bottle.drinkFrom,
+    drinkBestBy: bottle.drinkBestBy,
+    provenance: bottle.drinkWindowSource,
+    drinkWindowVintage: bottle.drinkWindowVintage,
+    vintage: bottle.vintage,
+    grape: grapes[bottle.id] ?? null,
+  });
   const qty = Math.max(1, bottle.quantity || 1);
   const meta = [
     bottle.vintage ?? "—",
@@ -40,7 +53,7 @@ export function BottleShelfSlot({ bottle }: { bottle: Bottle }) {
           {bottle.name}
         </p>
         <p className="mt-0.5 truncate text-sm text-muted-foreground">{meta}</p>
-        <p className="mt-0.5 text-sm text-foreground">{shelfReadinessLine(bottle)}</p>
+        <p className="mt-0.5 text-sm text-foreground">{shelfReadinessLine(window)}</p>
       </div>
     </Link>
   );

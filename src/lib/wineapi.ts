@@ -50,6 +50,18 @@ export function mapWineApiResult(wine: WineApiWine, confidence?: number | null):
   };
 }
 
+export function wineApiError(status: number, raw: unknown, fallback: string): Error {
+  const message =
+    status === 429
+      ? "WineAPI er midlertidigt brugt op. Prøv igen senere."
+      : typeof raw === "object" && raw && "error" in raw
+        ? String((raw as { error: string }).error)
+        : fallback;
+  const error = new Error(message) as Error & { status?: number };
+  if (status === 429) error.status = 429;
+  return error;
+}
+
 export async function identifyWineImage(file: Blob): Promise<{
   suggestion: WineSuggestion | null;
   suggestions: WineSuggestion[];
@@ -70,13 +82,7 @@ export async function identifyWineImage(file: Blob): Promise<{
   });
 
   const raw = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new Error(
-      typeof raw === "object" && raw && "error" in raw
-        ? String((raw as { error: string }).error)
-        : `WineAPI fejl (${res.status})`,
-    );
-  }
+  if (!res.ok) throw wineApiError(res.status, raw, `WineAPI fejl (${res.status})`);
 
   const payload = raw as {
     confidence?: number;
@@ -106,13 +112,7 @@ export async function searchWines(query: string): Promise<WineSuggestion[]> {
 
   const res = await fetch(url, { headers: { "X-API-Key": key } });
   const raw = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new Error(
-      typeof raw === "object" && raw && "error" in raw
-        ? String((raw as { error: string }).error)
-        : `WineAPI søgning fejlede (${res.status})`,
-    );
-  }
+  if (!res.ok) throw wineApiError(res.status, raw, `WineAPI søgning fejlede (${res.status})`);
 
   const results = (raw as { results?: WineApiWine[] }).results ?? [];
   return results.map((w) => mapWineApiResult(w));
