@@ -6,14 +6,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, DoorOpen } from "lucide-react";
 import { ThumbBar } from "@/components/thumb-bar";
 import { WineBottleSvg } from "@/components/wine/wine-bottle-svg";
-import { GrapeWindow, type GrapeWindowStatus } from "@/components/wine/grape-window";
+import type { GrapeWindowStatus } from "@/components/wine/grape-window";
 import { WineFacts } from "@/components/wine/wine-facts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBottles } from "@/hooks/use-bottles";
+import { effectiveDrinkWindow, windowSourceCaption } from "@/lib/effective-window";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
+import { rememberGrapeWindow, useGrapeWindows } from "@/lib/grape-session";
 import type { GrapeIdentity } from "@/lib/grapeminds";
+import { yearsAfterVintage } from "@/lib/scan-sources";
 import type { WineProfile } from "@/lib/wine-profile";
 import { vintagesMatch } from "@/lib/wine-profile";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
@@ -26,6 +29,7 @@ export default function BottlePage() {
   const [takeCount, setTakeCount] = useState("1");
   const asked = useRef<string | null>(null);
   const grapeAsked = useRef<string | null>(null);
+  const grapeWindows = useGrapeWindows();
   const [grape, setGrape] = useState<{
     status: GrapeWindowStatus;
     identity?: GrapeIdentity;
@@ -82,7 +86,7 @@ export default function BottlePage() {
       });
   }, [bottle, addBottle]);
 
-  function loadGrapeWindow(match: GrapeIdentity, vintage: number | undefined, force = false) {
+  function loadGrapeWindow(bottleId: string, match: GrapeIdentity, vintage: number | undefined, force = false) {
     const key = `${match.wineId}:${vintage ?? ""}`;
     if (!force && grapeAsked.current === key) return;
     grapeAsked.current = key;
@@ -114,19 +118,39 @@ export default function BottlePage() {
         if (data.status === "stopped") {
           grapeAsked.current = `stopped:${key}`;
         }
-        setGrape({
+        const next = {
           status: data.status ?? "unavailable",
           identity: data.identity ?? match,
           fromOffset: data.fromOffset,
           toOffset: data.toOffset,
-        });
+        };
+        setGrape(next);
+        if (
+          next.status === "ready" &&
+          vintage !== undefined &&
+          next.fromOffset !== undefined &&
+          next.toOffset !== undefined &&
+          bottleId
+        ) {
+          const years = yearsAfterVintage(next.fromOffset, next.toOffset, vintage);
+          if (years.ok && years.fromYear !== undefined && years.toYear !== undefined) {
+            rememberGrapeWindow(bottleId, {
+              fromYear: years.fromYear,
+              toYear: years.toYear,
+              vintage,
+              wineId: next.identity.wineId,
+              displayName: next.identity.displayName,
+              producer: next.identity.producer,
+            });
+          }
+        }
       })
       .catch(() => setGrape({ status: "unavailable", identity: match }));
   }
 
   useEffect(() => {
-    if (!bottle?.grapeMatch) return;
-    loadGrapeWindow(bottle.grapeMatch, bottle.vintage);
+    if (!bottle?.grapeMatch || bottle.drinkWindowSource === "manual") return;
+    loadGrapeWindow(bottle.id, bottle.grapeMatch, bottle.vintage);
     // The match id and vintage decide the request. The function identity changes every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bottle?.id, bottle?.grapeMatch?.wineId, bottle?.vintage]);
@@ -146,7 +170,14 @@ export default function BottlePage() {
     );
   }
 
-  const status = drinkStatusLabel(bottle);
+  const effective = effectiveDrinkWindow({
+    drinkFrom: bottle.drinkFrom,
+    drinkBestBy: bottle.drinkBestBy,
+    provenance: bottle.drinkWindowSource,
+    vintage: bottle.vintage,
+    grape: grapeWindows[bottle.id] ?? null,
+  });
+  const status = drinkStatusLabel(effective);
   const qty = Math.max(1, bottle.quantity || 1);
   const take = Math.min(qty, Math.max(1, Number(takeCount) || 1));
 
@@ -203,8 +234,8 @@ export default function BottlePage() {
             <Item label="Druer" value={bottle.grapes} />
             <Item label="Antal" value={qty > 1 ? `${qty} flasker` : "1 flaske"} />
             <Item label="Indlagt" value={formatDateDa(bottle.addedAt)} />
-            <Item label="Bedst fra" value={formatDateDa(bottle.drinkFrom)} />
-            <Item label="Bedst til" value={formatDateDa(bottle.drinkBestBy)} />
+            <Item label="Bedst fra" value={formatDateDa(effective.drinkFrom)} />
+            <Item label="Bedst til" value={formatDateDa(effective.drinkBestBy)} />
             <Item
               label="Status"
               value={bottle.status === "in_fridge" ? "I køleskabet" : "Taget ud"}
@@ -213,26 +244,33 @@ export default function BottlePage() {
               <Item label="Taget ud" value={formatDateDa(bottle.removedAt)} />
             ) : null}
           </dl>
-          {bottle.grapeMatch ? (
-            <GrapeWindow
-              status={grape?.status ?? "loading"}
-              identity={grape?.identity ?? bottle.grapeMatch}
-              fromOffset={grape?.fromOffset}
-              toOffset={grape?.toOffset}
-              vintage={bottle.vintage}
-              onRetry={
-                grape?.status === "pending"
-                  ? () => loadGrapeWindow(bottle.grapeMatch!, bottle.vintage, true)
-                  : undefined
-              }
-            />
-          ) : null}
-          {bottle.drinkWindowSource ? (
-            <p className="text-xs text-muted-foreground">
-              {bottle.drinkWindowSource === "manual"
-                ? "Datoerne er dem, du har skrevet."
-                : "Datoerne er et skøn ud fra type og årgang."}
+          <p className="text-xs text-muted-foreground">{windowSourceCaption(effective.source)}</p>
+          {effective.source === "grapeminds" && grapeWindows[bottle.id] ? (
+            <p className="text-sm">
+              Matchet vin: {grapeWindows[bottle.id].producer ? `${grapeWindows[bottle.id].producer}, ` : ""}
+              {grapeWindows[bottle.id].displayName}
             </p>
+          ) : null}
+          {bottle.drinkWindowSource !== "manual" && grape?.status === "loading" ? (
+            <p className="text-sm text-muted-foreground">Henter GrapeMinds-skøn…</p>
+          ) : null}
+          {bottle.drinkWindowSource !== "manual" && grape?.status === "missing_key" ? (
+            <p className="text-sm text-muted-foreground">Serveren har ingen GrapeMinds-nøgle, så skønnet hentes ikke.</p>
+          ) : null}
+          {bottle.drinkWindowSource !== "manual" && grape?.status === "stopped" ? (
+            <p className="text-sm text-muted-foreground">GrapeMinds er ikke tilgængeligt. Der prøves ikke igen.</p>
+          ) : null}
+          {bottle.drinkWindowSource !== "manual" && grape?.status === "unavailable" ? (
+            <p className="text-sm text-muted-foreground">GrapeMinds havde ikke et brugbart vindue for den matchede vin.</p>
+          ) : null}
+          {bottle.drinkWindowSource !== "manual" && grape?.status === "pending" ? (
+            <button
+              type="button"
+              className="min-h-11 text-sm text-[var(--brass)] underline"
+              onClick={() => bottle.grapeMatch && loadGrapeWindow(bottle.id, bottle.grapeMatch, bottle.vintage, true)}
+            >
+              Prøv GrapeMinds igen
+            </button>
           ) : null}
 
           {bottle.notes ? (

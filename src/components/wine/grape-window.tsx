@@ -1,7 +1,6 @@
 "use client";
 
 import type { GrapeIdentity } from "@/lib/grapeminds";
-import { yearsAfterVintage } from "@/lib/scan-sources";
 
 export type GrapeWindowStatus =
   | "loading"
@@ -16,48 +15,25 @@ export function GrapeWindow({
   status,
   identity,
   choices,
-  fromOffset,
-  toOffset,
-  vintage,
   onChoose,
   onRetry,
 }: {
   status: GrapeWindowStatus;
   identity?: GrapeIdentity | null;
   choices?: GrapeIdentity[];
-  fromOffset?: number;
-  toOffset?: number;
-  vintage?: number;
   onChoose?: (choice: GrapeIdentity) => void;
   onRetry?: () => void;
 }) {
-  const dated =
-    status === "ready" && fromOffset !== undefined && toOffset !== undefined
-      ? yearsAfterVintage(fromOffset, toOffset, vintage)
-      : null;
-
   return (
     <section className="space-y-2 rounded-xl border border-[rgba(196,163,90,0.2)] bg-[rgba(28,22,18,0.9)] px-3 py-3">
       <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--brass)]">GrapeMinds-skøn</h2>
       <p className="text-sm text-muted-foreground">
         Gælder vinen generelt, ikke en analyse af denne årgang. Ikke alle vine findes.
       </p>
-      {identity ? (
+      {identity && status !== "ready" ? (
         <p className="text-sm">
           Matchet vin: {identity.producer ? `${identity.producer}, ` : ""}
           {identity.displayName}
-        </p>
-      ) : null}
-      {dated?.ok && dated.fromYear !== undefined && dated.toYear !== undefined ? (
-        <p className="text-sm">
-          For årgang {vintage}: {dated.fromYear}–{dated.toYear}. Det er {dated.fromOffset}–{dated.toOffset}{" "}
-          år efter årgangen.
-        </p>
-      ) : null}
-      {dated?.ok && dated.fromYear === undefined ? (
-        <p className="text-sm">
-          Årgang mangler, så der beregnes ingen årstal. Vinduet er {dated.fromOffset}–{dated.toOffset} år efter
-          årgangen.
         </p>
       ) : null}
       {status === "loading" ? <p className="text-sm">Henter skøn…</p> : null}
@@ -98,9 +74,6 @@ export function GrapeWindow({
       {status === "missing_key" ? (
         <p className="text-sm">Serveren har ingen GrapeMinds-nøgle, så skønnet hentes ikke.</p>
       ) : null}
-      <p className="text-xs text-muted-foreground">
-        Datoerne på flasken er dine eller et groft typeskøn. De overtages ikke herfra.
-      </p>
     </section>
   );
 }

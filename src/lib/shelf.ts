@@ -38,7 +38,7 @@ function yearOf(iso?: string) {
   return iso.slice(0, 4);
 }
 
-/** Short shelf line. Uses only the stored drinking window. */
+/** Short shelf line. The caller passes the one effective window. */
 export function shelfReadinessLine(
   bottle: { drinkFrom?: string; drinkBestBy?: string },
   now = new Date(),

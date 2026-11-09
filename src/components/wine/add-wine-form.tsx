@@ -11,10 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fileToCompressedDataUrl } from "@/lib/image";
 import { readBarcode } from "@/lib/barcode";
-import { suggestDrinkWindow } from "@/lib/drink-window";
+import { formatDateDa, suggestDrinkWindow } from "@/lib/drink-window";
 import { readLabelText } from "@/lib/label-text";
 import { lookupOpenFoodFacts } from "@/lib/open-food-facts";
+import { effectiveDrinkWindow, windowSourceCaption } from "@/lib/effective-window";
+import { rememberGrapeWindow } from "@/lib/grape-session";
 import { savedDrinkDates, type GrapeIdentity } from "@/lib/grapeminds";
+import { yearsAfterVintage } from "@/lib/scan-sources";
 import { cachedWineProfile, vintagesMatch, type WineProfile } from "@/lib/wine-profile";
 import type { IdentifyResponse, WineSuggestion, WineType } from "@/lib/types";
 import { WINE_TYPE_LABELS, WINE_TYPES } from "@/lib/wine-types";
@@ -74,6 +77,7 @@ export function AddWineForm() {
   const [form, setForm] = useState(emptyForm);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [drinkEdited, setDrinkEdited] = useState(false);
+  const [ownDates, setOwnDates] = useState(false);
   const [matched, setMatched] = useState<{ id: string; vintage?: number } | null>(null);
   const [wineProfile, setWineProfile] = useState<WineProfile | undefined>();
 
@@ -443,10 +447,28 @@ export function AddWineForm() {
         addedAt: form.addedAt,
       }),
     });
+    const id = crypto.randomUUID();
+    const shown = effectiveDrinkWindow({
+      drinkFrom: dates.drinkFrom,
+      drinkBestBy: dates.drinkBestBy,
+      provenance: dates.source,
+      vintage,
+      grape: grapeYearsFor(grape, vintage),
+    });
 
     startTransition(() => {
+      if (shown.source === "grapeminds" && shown.drinkFrom && shown.drinkBestBy && grape?.identity && vintage) {
+        rememberGrapeWindow(id, {
+          fromYear: Number(shown.drinkFrom.slice(0, 4)),
+          toYear: Number(shown.drinkBestBy.slice(0, 4)),
+          vintage,
+          wineId: grape.identity.wineId,
+          displayName: grape.identity.displayName,
+          producer: grape.identity.producer,
+        });
+      }
       addBottle({
-        id: crypto.randomUUID(),
+        id,
         name: form.name.trim(),
         producer: form.producer.trim() || undefined,
         vintage,
@@ -644,14 +666,11 @@ export function AddWineForm() {
         </section>
       ) : null}
 
-      {grape && grapemindsOn ? (
+      {grape && grapemindsOn && grape.status !== "ready" && !drinkEdited ? (
         <GrapeWindow
           status={grape.status}
           identity={grape.identity}
           choices={grape.choices}
-          fromOffset={grape.fromOffset}
-          toOffset={grape.toOffset}
-          vintage={/^\d{4}$/.test(form.vintage) ? Number(form.vintage) : undefined}
           onChoose={(choice) =>
             void loadGrape({
               producer: form.producer,
@@ -764,6 +783,15 @@ export function AddWineForm() {
             Købt en kasse? Vælg antal, så tælles de som én post på hylden.
           </p>
         </Field>
+        <DrinkWindowSummary
+          drinkFrom={form.drinkFrom}
+          drinkBestBy={form.drinkBestBy}
+          edited={drinkEdited}
+          ownDates={ownDates}
+          vintage={/^\d{4}$/.test(form.vintage) ? Number(form.vintage) : undefined}
+          grape={grape}
+          onOwnDates={() => setOwnDates(true)}
+        />
         <button
           type="button"
           className="min-h-11 text-left text-sm text-[var(--brass)] underline-offset-4 hover:underline"
@@ -815,6 +843,7 @@ export function AddWineForm() {
             onChange={(e) => setForm({ ...form, addedAt: e.target.value })}
           />
         </Field>
+        {ownDates || drinkEdited || !grapeYearsFor(grape, /^\d{4}$/.test(form.vintage) ? Number(form.vintage) : undefined) ? (
         <div className="grid min-w-0 grid-cols-1 gap-3 min-[480px]:grid-cols-2">
           <Field label="Bedst fra" id="drinkFrom">
             <Input
@@ -839,6 +868,9 @@ export function AddWineForm() {
             />
           </Field>
         </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Datoerne står ovenfor. Skriv egne datoer, hvis de skal gemmes i stedet.</p>
+        )}
         <Field label="Noter" id="notes">
           <Textarea
             id="notes"
@@ -867,6 +899,61 @@ export function AddWineForm() {
       </ThumbBar>
     </div>
   );
+}
+
+function DrinkWindowSummary({
+  drinkFrom,
+  drinkBestBy,
+  edited,
+  ownDates,
+  vintage,
+  grape,
+  onOwnDates,
+}: {
+  drinkFrom: string;
+  drinkBestBy: string;
+  edited: boolean;
+  ownDates: boolean;
+  vintage?: number;
+  grape: { status: string; fromOffset?: number; toOffset?: number } | null;
+  onOwnDates: () => void;
+}) {
+  const dates = savedDrinkDates({
+    drinkFrom,
+    drinkBestBy,
+    edited,
+    fallback: drinkFrom || drinkBestBy ? { drinkFrom, drinkBestBy } : undefined,
+  });
+  const shown = effectiveDrinkWindow({
+    drinkFrom: dates.drinkFrom,
+    drinkBestBy: dates.drinkBestBy,
+    provenance: edited ? "manual" : dates.drinkFrom || dates.drinkBestBy ? "estimate" : undefined,
+    vintage,
+    grape: ownDates ? null : grapeYearsFor(grape, vintage),
+  });
+  if (shown.source === "unavailable" && !drinkFrom && !drinkBestBy) return null;
+  return (
+    <div className="space-y-1 rounded-xl border border-[rgba(196,163,90,0.16)] px-3 py-3">
+      <p className="text-sm">Bedst fra {formatDateDa(shown.drinkFrom)}</p>
+      <p className="text-sm">Bedst til {formatDateDa(shown.drinkBestBy)}</p>
+      <p className="text-xs text-muted-foreground">{windowSourceCaption(shown.source)}</p>
+      {shown.source === "grapeminds" ? (
+        <button type="button" className="min-h-11 text-sm text-[var(--brass)] underline" onClick={onOwnDates}>
+          Skriv egne datoer
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function grapeYearsFor(
+  grape: { status: string; fromOffset?: number; toOffset?: number } | null,
+  vintage?: number,
+) {
+  if (grape?.status !== "ready" || grape.fromOffset === undefined || grape.toOffset === undefined) return null;
+  const window = yearsAfterVintage(grape.fromOffset, grape.toOffset, vintage);
+  if (!window.ok || window.fromYear === undefined || window.toYear === undefined || vintage === undefined) return null;
+  return { fromYear: window.fromYear, toYear: window.toYear, vintage };
 }
 
 function Field({
