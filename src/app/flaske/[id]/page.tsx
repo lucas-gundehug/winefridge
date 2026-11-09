@@ -12,11 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBottles } from "@/hooks/use-bottles";
-import { effectiveDrinkWindow, windowSourceCaption } from "@/lib/effective-window";
+import { effectiveDrinkWindow, storedDrinkWindow, windowSourceCaption } from "@/lib/effective-window";
 import { drinkStatusLabel, formatDateDa } from "@/lib/drink-window";
 import { rememberGrapeWindow, useGrapeWindows } from "@/lib/grape-session";
 import type { GrapeIdentity } from "@/lib/grapeminds";
 import { yearsAfterVintage } from "@/lib/scan-sources";
+import type { Bottle } from "@/lib/types";
 import type { WineProfile } from "@/lib/wine-profile";
 import { vintagesMatch } from "@/lib/wine-profile";
 import { WINE_TYPE_LABELS } from "@/lib/wine-types";
@@ -86,7 +87,11 @@ export default function BottlePage() {
       });
   }, [bottle, addBottle]);
 
-  function loadGrapeWindow(bottleId: string, match: GrapeIdentity, vintage: number | undefined, force = false) {
+  function loadGrapeWindow(snapshot: Bottle, force = false) {
+    const match = snapshot.grapeMatch;
+    if (!match) return;
+    const bottleId = snapshot.id;
+    const vintage = snapshot.vintage;
     const key = `${match.wineId}:${vintage ?? ""}`;
     if (!force && grapeAsked.current === key) return;
     grapeAsked.current = key;
@@ -142,6 +147,23 @@ export default function BottlePage() {
               displayName: next.identity.displayName,
               producer: next.identity.producer,
             });
+            const stored = storedDrinkWindow({
+              drinkFrom: snapshot.drinkFrom,
+              drinkBestBy: snapshot.drinkBestBy,
+              provenance: snapshot.drinkWindowSource,
+              vintage,
+              grape: { fromYear: years.fromYear, toYear: years.toYear, vintage },
+            });
+            if (stored.replaced) {
+              addBottle({
+                ...snapshot,
+                drinkFrom: stored.drinkFrom,
+                drinkBestBy: stored.drinkBestBy,
+                drinkWindowSource: stored.provenance,
+                drinkWindowVintage: stored.drinkWindowVintage,
+                grapeMatch: next.identity,
+              });
+            }
           }
         }
       })
@@ -150,7 +172,15 @@ export default function BottlePage() {
 
   useEffect(() => {
     if (!bottle?.grapeMatch || bottle.drinkWindowSource === "manual") return;
-    loadGrapeWindow(bottle.id, bottle.grapeMatch, bottle.vintage);
+    if (!bottle.drinkWindowSource && (bottle.drinkFrom || bottle.drinkBestBy)) return;
+    if (
+      bottle.drinkWindowSource === "grapeminds" &&
+      bottle.drinkWindowVintage === bottle.vintage &&
+      (bottle.drinkFrom || bottle.drinkBestBy)
+    ) {
+      return;
+    }
+    loadGrapeWindow(bottle);
     // The match id and vintage decide the request. The function identity changes every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bottle?.id, bottle?.grapeMatch?.wineId, bottle?.vintage]);
@@ -174,6 +204,7 @@ export default function BottlePage() {
     drinkFrom: bottle.drinkFrom,
     drinkBestBy: bottle.drinkBestBy,
     provenance: bottle.drinkWindowSource,
+    drinkWindowVintage: bottle.drinkWindowVintage,
     vintage: bottle.vintage,
     grape: grapeWindows[bottle.id] ?? null,
   });
@@ -267,7 +298,7 @@ export default function BottlePage() {
             <button
               type="button"
               className="min-h-11 text-sm text-[var(--brass)] underline"
-              onClick={() => bottle.grapeMatch && loadGrapeWindow(bottle.id, bottle.grapeMatch, bottle.vintage, true)}
+              onClick={() => loadGrapeWindow(bottle, true)}
             >
               Prøv GrapeMinds igen
             </button>

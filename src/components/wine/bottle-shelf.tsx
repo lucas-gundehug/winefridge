@@ -14,6 +14,7 @@ export function BottleShelfSlot({ bottle }: { bottle: Bottle }) {
     drinkFrom: bottle.drinkFrom,
     drinkBestBy: bottle.drinkBestBy,
     provenance: bottle.drinkWindowSource,
+    drinkWindowVintage: bottle.drinkWindowVintage,
     vintage: bottle.vintage,
     grape: grapes[bottle.id] ?? null,
   });

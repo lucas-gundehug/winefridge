@@ -14,7 +14,7 @@ import { readBarcode } from "@/lib/barcode";
 import { formatDateDa, suggestDrinkWindow } from "@/lib/drink-window";
 import { readLabelText } from "@/lib/label-text";
 import { lookupOpenFoodFacts } from "@/lib/open-food-facts";
-import { effectiveDrinkWindow, windowSourceCaption } from "@/lib/effective-window";
+import { effectiveDrinkWindow, storedDrinkWindow, windowSourceCaption } from "@/lib/effective-window";
 import { rememberGrapeWindow } from "@/lib/grape-session";
 import { savedDrinkDates, type GrapeIdentity } from "@/lib/grapeminds";
 import { yearsAfterVintage } from "@/lib/scan-sources";
@@ -448,19 +448,19 @@ export function AddWineForm() {
       }),
     });
     const id = crypto.randomUUID();
-    const shown = effectiveDrinkWindow({
+    const stored = storedDrinkWindow({
       drinkFrom: dates.drinkFrom,
       drinkBestBy: dates.drinkBestBy,
       provenance: dates.source,
       vintage,
-      grape: grapeYearsFor(grape, vintage),
+      grape: drinkEdited ? null : grapeYearsFor(grape, vintage),
     });
 
     startTransition(() => {
-      if (shown.source === "grapeminds" && shown.drinkFrom && shown.drinkBestBy && grape?.identity && vintage) {
+      if (stored.provenance === "grapeminds" && grape?.identity && vintage && stored.drinkWindowVintage === vintage) {
         rememberGrapeWindow(id, {
-          fromYear: Number(shown.drinkFrom.slice(0, 4)),
-          toYear: Number(shown.drinkBestBy.slice(0, 4)),
+          fromYear: Number(stored.drinkFrom?.slice(0, 4)),
+          toYear: Number(stored.drinkBestBy?.slice(0, 4)),
           vintage,
           wineId: grape.identity.wineId,
           displayName: grape.identity.displayName,
@@ -479,11 +479,12 @@ export function AddWineForm() {
         notes: form.notes.trim() || undefined,
         imageDataUrl,
         addedAt: form.addedAt,
-        drinkFrom: dates.drinkFrom,
-        drinkBestBy: dates.drinkBestBy,
+        drinkFrom: stored.drinkFrom,
+        drinkBestBy: stored.drinkBestBy,
         quantity,
         status: "in_fridge",
-        drinkWindowSource: dates.source,
+        ...(stored.provenance ? { drinkWindowSource: stored.provenance } : {}),
+        ...(stored.drinkWindowVintage !== undefined ? { drinkWindowVintage: stored.drinkWindowVintage } : {}),
         ...(grape?.identity && (grape.status === "ready" || grape.status === "pending")
           ? { grapeMatch: grape.identity }
           : {}),

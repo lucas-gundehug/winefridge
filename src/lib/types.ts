@@ -23,9 +23,11 @@ export type Bottle = {
   /** How many identical bottles of this entry are in the fridge. */
   quantity: number;
   /** Present only when we know how the drinking dates were chosen. */
-  drinkWindowSource?: "manual" | "estimate";
+  drinkWindowSource?: "manual" | "estimate" | "grapeminds";
+  /** Vintage the stored GrapeMinds years were calculated from. */
+  drinkWindowVintage?: number;
   wineProfile?: WineProfile;
-  /** Confirmed GrapeMinds catalog identity. The drinking window itself is not stored. */
+  /** Confirmed GrapeMinds catalog identity. Prose from the provider is not stored. */
   grapeMatch?: {
     wineId: number;
     displayName: string;
