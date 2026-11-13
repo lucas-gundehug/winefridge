@@ -1,6 +1,6 @@
 {
-  "name": "Winefridge",
-  "short_name": "Winefridge",
+  "name": "Mit vinkøleskab",
+  "short_name": "Vinkøleskab",
   "description": "Personligt vinkøleskab med foto-registrering",
   "start_url": "/",
   "display": "standalone",

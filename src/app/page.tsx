@@ -59,7 +59,7 @@ export default function HomePage() {
       <div className="flex items-center gap-2 px-3 py-1.5 pt-[max(0.4rem,env(safe-area-inset-top,0px))]">
         <div className="min-w-0 flex-1">
           <h1 className="font-[family-name:var(--font-display)] text-[0.95rem] leading-tight text-[var(--brass)]">
-            Bossen(Anders) virtuelle vinkøleskab
+            Mit vinkøleskab
           </h1>
           <p className="text-sm text-muted-foreground">{countLabel}</p>
         </div>

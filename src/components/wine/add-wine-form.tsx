@@ -23,6 +23,8 @@ import type { IdentifyResponse, WineSuggestion, WineType } from "@/lib/types";
 import { WINE_TYPE_LABELS, WINE_TYPES } from "@/lib/wine-types";
 import { useBottles } from "@/hooks/use-bottles";
 
+const initialStopped = { wineapi: false, off: false, gemini: false, grapeminds: false };
+
 const emptyForm = {
   name: "",
   producer: "",
@@ -67,8 +69,8 @@ export function AddWineForm() {
     toOffset?: number;
   } | null>(null);
   const [geminiAsk, setGeminiAsk] = useState(false);
-  const stoppedRef = useRef({ wineapi: false, off: false, gemini: false, grapeminds: false });
-  const [stopped, setStopped] = useState(stoppedRef.current);
+  const stoppedRef = useRef(initialStopped);
+  const [stopped, setStopped] = useState(initialStopped);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
@@ -80,6 +82,68 @@ export function AddWineForm() {
   const [ownDates, setOwnDates] = useState(false);
   const [matched, setMatched] = useState<{ id: string; vintage?: number } | null>(null);
   const [wineProfile, setWineProfile] = useState<WineProfile | undefined>();
+
+  function stopProvider(provider: "wineapi" | "off" | "gemini" | "grapeminds", message: string) {
+    stoppedRef.current = { ...stoppedRef.current, [provider]: true };
+    setStopped(stoppedRef.current);
+    setError(message);
+  }
+
+  async function loadGrape(input: {
+    producer?: string;
+    name: string;
+    vintage?: number;
+    wineId?: number;
+    displayName?: string;
+    choiceProducer?: string;
+  }) {
+    grapeRequest.current = input;
+    if (!grapemindsOn || stoppedRef.current.grapeminds) return;
+    setGrape((current) => ({
+      status: "loading",
+      identity: input.wineId
+        ? {
+            wineId: input.wineId,
+            displayName: input.displayName ?? "",
+            producer: input.choiceProducer ?? input.producer ?? "",
+          }
+        : current?.identity,
+      choices: current?.choices,
+    }));
+    try {
+      const res = await fetch("/api/grapeminds-window", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        enabled?: boolean;
+        status?: "ready" | "ambiguous" | "unavailable" | "pending" | "stopped";
+        identity?: GrapeIdentity;
+        choices?: GrapeIdentity[];
+        fromOffset?: number;
+        toOffset?: number;
+      } | null;
+      if (!data?.enabled) {
+        setGrape({ status: "missing_key" });
+        return;
+      }
+      if (data.status === "stopped") {
+        stopProvider("grapeminds", "GrapeMinds er ikke tilgængeligt. Der prøves ikke igen.");
+        setGrape({ status: "stopped", identity: data.identity });
+        return;
+      }
+      setGrape({
+        status: data.status ?? "unavailable",
+        identity: data.identity,
+        choices: data.choices,
+        fromOffset: data.fromOffset,
+        toOffset: data.toOffset,
+      });
+    } catch {
+      setGrape({ status: "unavailable" });
+    }
+  }
 
   function applySuggestion(s: WineSuggestion) {
     const typedVintage = form.vintage.trim();
@@ -178,68 +242,6 @@ export function AddWineForm() {
     scanAbort.current?.abort();
     setScanBusy(null);
     setIdentifying(false);
-  }
-
-  async function loadGrape(input: {
-    producer?: string;
-    name: string;
-    vintage?: number;
-    wineId?: number;
-    displayName?: string;
-    choiceProducer?: string;
-  }) {
-    grapeRequest.current = input;
-    if (!grapemindsOn || stoppedRef.current.grapeminds) return;
-    setGrape((current) => ({
-      status: "loading",
-      identity: input.wineId
-        ? {
-            wineId: input.wineId,
-            displayName: input.displayName ?? "",
-            producer: input.choiceProducer ?? input.producer ?? "",
-          }
-        : current?.identity,
-      choices: current?.choices,
-    }));
-    try {
-      const res = await fetch("/api/grapeminds-window", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      const data = (await res.json().catch(() => null)) as {
-        enabled?: boolean;
-        status?: "ready" | "ambiguous" | "unavailable" | "pending" | "stopped";
-        identity?: GrapeIdentity;
-        choices?: GrapeIdentity[];
-        fromOffset?: number;
-        toOffset?: number;
-      } | null;
-      if (!data?.enabled) {
-        setGrape({ status: "missing_key" });
-        return;
-      }
-      if (data.status === "stopped") {
-        stopProvider("grapeminds", "GrapeMinds er ikke tilgængeligt. Der prøves ikke igen.");
-        setGrape({ status: "stopped", identity: data.identity });
-        return;
-      }
-      setGrape({
-        status: data.status ?? "unavailable",
-        identity: data.identity,
-        choices: data.choices,
-        fromOffset: data.fromOffset,
-        toOffset: data.toOffset,
-      });
-    } catch {
-      setGrape({ status: "unavailable" });
-    }
-  }
-
-  function stopProvider(provider: "wineapi" | "off" | "gemini" | "grapeminds", message: string) {
-    stoppedRef.current = { ...stoppedRef.current, [provider]: true };
-    setStopped(stoppedRef.current);
-    setError(message);
   }
 
   async function searchQuery(text: string, signal?: AbortSignal) {

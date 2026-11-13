@@ -1,5 +1,4 @@
 import type { Bottle } from "@/lib/types";
-import { SAMPLE_BOTTLES, SAMPLE_SEEDED_KEY } from "@/lib/sample-bottles";
 
 const STORAGE_KEY = "winefridge.bottles.v1";
 
@@ -16,21 +15,9 @@ export function loadBottles(): Bottle[] {
   if (!canUseStorage()) return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      if (!window.localStorage.getItem(SAMPLE_SEEDED_KEY)) {
-        saveBottles(SAMPLE_BOTTLES);
-        window.localStorage.setItem(SAMPLE_SEEDED_KEY, "1");
-        return SAMPLE_BOTTLES.map(normalizeBottle);
-      }
-      return [];
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as Bottle[];
     if (!Array.isArray(parsed)) return [];
-    if (parsed.length === 0 && !window.localStorage.getItem(SAMPLE_SEEDED_KEY)) {
-      saveBottles(SAMPLE_BOTTLES);
-      window.localStorage.setItem(SAMPLE_SEEDED_KEY, "1");
-      return SAMPLE_BOTTLES.map(normalizeBottle);
-    }
     return parsed.map(normalizeBottle);
   } catch {
     return [];
