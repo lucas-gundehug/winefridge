@@ -9,12 +9,12 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38BDF8?style=flat&logo=tailwindcss&logoColor=white)
 
-**Bossen(Anders) virtuelle vinkøleskab.** A phone-first cabinet for one person's bottles: photograph a label, keep the inventory on this device, and see when a bottle is ready to drink.
+**Mit vinkøleskab.** A phone-first cabinet for one person's bottles: photograph a label, keep the inventory on this device, and see when a bottle is ready to drink.
 
 **Public site:** [winefridge.gundelach.pw](https://winefridge.gundelach.pw)
 
 <p align="center">
-  <img src="docs/images/home.png" alt="The open cabinet on a phone. The title is Bossen(Anders) virtuelle vinkøleskab, with two bottles on each wooden shelf." width="280">
+  <img src="docs/images/home.png" alt="The open cabinet on a phone. The title is Mit vinkøleskab, and the shelves are empty until a bottle is added." width="280">
 </p>
 
 ---
@@ -28,7 +28,7 @@
 | **Flaske** | One bottle's details. **Tag ud** asks for confirmation and can take part of a case. |
 | **Historik** | Bottles that have left the cabinet. |
 
-The first visit in a browser seeds a few example bottles. They live only in that browser.
+A new browser starts with an empty cabinet. Bottles are added with **Tilføj**.
 
 Wine types are rød, hvid, rosé, mousserende, portvin, madeira, sherry, dessert, orange and anden. The drawn bottle follows the type. A saved label photo replaces the printed name on the bottle.
 
@@ -71,4 +71,4 @@ The repository has no lockfile, so the install command is `npm install`.
 | Lint | `npm run lint` |
 | Shelf and label tests | `npm test` |
 
-`npm test` covers how bottles are grouped on a shelf, the short drinking-window line, and that a label only repeats the wine's own name and year.
+`npm test` covers how bottles are grouped on a shelf, the short drinking-window line, that a label only repeats the wine's own name and year, and that a visit does not write example bottles into `localStorage`.

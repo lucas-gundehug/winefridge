@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/shelf.test.ts src/lib/wine-profile.test.ts src/lib/scan-sources.test.ts src/lib/grapeminds.test.ts src/lib/effective-window.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/shelf.test.ts src/lib/wine-profile.test.ts src/lib/scan-sources.test.ts src/lib/grapeminds.test.ts src/lib/effective-window.test.ts src/lib/storage.test.ts"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.1",

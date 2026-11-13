@@ -6,7 +6,7 @@ const cache = new Map<string, OffSuggestion | null>();
 export async function lookupOpenFoodFacts(code: string, signal: AbortSignal): Promise<OffSuggestion | null> {
   if (cache.has(code)) return cache.get(code) ?? null;
   const res = await fetch(`https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(code)}.json`, {
-    headers: { "User-Agent": "BossenWinefridge/1.0 (personal cellar)" },
+    headers: { "User-Agent": "Winefridge/1.0 (personal cellar)" },
     signal,
   });
   if (res.status === 429) {

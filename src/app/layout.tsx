@@ -14,14 +14,14 @@ const sans = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Winefridge",
+  title: "Mit vinkøleskab",
   description:
     "Personligt vinkøleskab: fotografer flasker, registrér dem, og se hvornår de er bedst at drikke.",
-  applicationName: "Winefridge",
+  applicationName: "Mit vinkøleskab",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Winefridge",
+    title: "Mit vinkøleskab",
   },
   formatDetection: {
     telephone: false,

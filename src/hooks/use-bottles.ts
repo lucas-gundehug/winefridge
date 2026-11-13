@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import type { Bottle } from "@/lib/types";
 import {
   loadBottles,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage";
 
 let memory: Bottle[] = [];
+let ready = false;
 const EMPTY: Bottle[] = [];
 const listeners = new Set<() => void>();
 
@@ -31,18 +32,26 @@ function getServerSnapshot(): Bottle[] {
   return EMPTY;
 }
 
+function getReadySnapshot() {
+  return ready;
+}
+
+function getReadyServerSnapshot() {
+  return false;
+}
+
 function setMemory(next: Bottle[]) {
   memory = next;
+  ready = true;
   emit();
 }
 
 export function useBottles() {
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useSyncExternalStore(subscribe, getReadySnapshot, getReadyServerSnapshot);
   const bottles = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
     setMemory(loadBottles());
-    setHydrated(true);
   }, []);
 
   const addBottle = useCallback((bottle: Bottle) => {
